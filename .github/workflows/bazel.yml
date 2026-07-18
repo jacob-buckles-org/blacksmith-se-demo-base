@@ -1,0 +1,27 @@
+name: Bazel Tools
+
+# Edge-case workflow: only runs when the bazel/ subproject changes or when
+# dispatched deliberately, so it stays out of the Actions tab otherwise.
+on:
+  push:
+    branches: [main]
+    paths: ["bazel/**"]
+  pull_request:
+    paths: ["bazel/**"]
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    name: Build and test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: bazel
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build
+        run: bazelisk build //:checksum_tool
+
+      - name: Test
+        run: bazelisk test //:checksum_test --test_output=all

@@ -1,0 +1,56 @@
+name: Docker
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-backend:
+    name: Build backend image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        if: github.event_name != 'pull_request'
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Build image
+        run: |
+          IMAGE="ghcr.io/${GITHUB_REPOSITORY,,}/anvil-backend"
+          docker build -t "$IMAGE:${GITHUB_SHA::7}" -t "$IMAGE:latest" backend/
+
+      - name: Push image
+        if: github.event_name != 'pull_request'
+        run: |
+          IMAGE="ghcr.io/${GITHUB_REPOSITORY,,}/anvil-backend"
+          docker push "$IMAGE:${GITHUB_SHA::7}"
+          docker push "$IMAGE:latest"
+
+  build-frontend:
+    name: Build frontend image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        if: github.event_name != 'pull_request'
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Build image
+        run: |
+          IMAGE="ghcr.io/${GITHUB_REPOSITORY,,}/anvil-dashboard"
+          docker build -t "$IMAGE:${GITHUB_SHA::7}" -t "$IMAGE:latest" frontend/
+
+      - name: Push image
+        if: github.event_name != 'pull_request'
+        run: |
+          IMAGE="ghcr.io/${GITHUB_REPOSITORY,,}/anvil-dashboard"
+          docker push "$IMAGE:${GITHUB_SHA::7}"
+          docker push "$IMAGE:latest"
