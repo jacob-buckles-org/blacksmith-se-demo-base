@@ -66,7 +66,7 @@ jobs:
           git config user.email "eng@anvil-analytics.example"
 
           git checkout --orphan demo-main origin/main --
-          git rm -rq --ignore-unmatch \
+          git rm -rqf --ignore-unmatch \
             CLAUDE.md \
             DEMO_RUNBOOK.md \
             .github/workflows/provision.yml \
