@@ -1,0 +1,141 @@
+name: "SE: Provision demo repo"
+
+# Creates a fresh customer demo repo from this base:
+#   1. Orphan "Initial commit" of main with SE-facing files scrubbed
+#      (CLAUDE.md, DEMO_RUNBOOK.md, provision/teardown workflows).
+#   2. Every feature/* branch cherry-picked on top and pushed, with a
+#      draft PR whose title/body come from the feature commit message.
+#   3. A burst of spaced trivial pushes to seed baseline CI history on
+#      GitHub-hosted runners (the "before" side of the dashboard chart).
+#
+# Requires org secret DEMO_PROVISION_TOKEN: a PAT with repo, workflow,
+# and delete_repo scopes on the target org.
+#
+# Baseline seeding takes real wall-clock time — provision the day before
+# the call, or keep a couple of pre-seeded repos warm.
+
+on:
+  workflow_dispatch:
+    inputs:
+      customer_name:
+        description: "Customer name (used in the repo slug)"
+        required: true
+      baseline_pushes:
+        description: "Trivial pushes to seed CI history (each triggers ~3 runs)"
+        default: "8"
+      push_spacing_seconds:
+        description: "Seconds between baseline pushes"
+        default: "90"
+      open_draft_prs:
+        description: "Open draft PRs for feature branches"
+        type: boolean
+        default: true
+
+env:
+  TARGET_ORG: jacob-buckles-org
+  GH_TOKEN: ${{ secrets.DEMO_PROVISION_TOKEN }}
+
+jobs:
+  provision:
+    name: Provision demo-${{ inputs.customer_name }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.DEMO_PROVISION_TOKEN }}
+
+      - name: Compute repo name
+        id: names
+        run: |
+          SLUG=$(echo "${{ inputs.customer_name }}" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' '-' | sed 's/^-//;s/-$//')
+          REPO="demo-${SLUG}-$(date +%Y%m%d)"
+          echo "repo=${TARGET_ORG}/${REPO}" >> "$GITHUB_OUTPUT"
+          echo "Provisioning ${TARGET_ORG}/${REPO}"
+
+      - name: Create demo repository
+        run: |
+          gh repo create "${{ steps.names.outputs.repo }}" --private \
+            --description "Anvil Analytics — usage analytics platform"
+          # Topic makes demo repos discoverable for teardown + tracking.
+          gh repo edit "${{ steps.names.outputs.repo }}" --add-topic blacksmith-demo
+
+      - name: Build scrubbed main
+        run: |
+          git config user.name "Anvil Analytics"
+          git config user.email "eng@anvil-analytics.example"
+
+          git checkout --orphan demo-main origin/main --
+          git rm -rq --ignore-unmatch \
+            CLAUDE.md \
+            DEMO_RUNBOOK.md \
+            .github/workflows/provision.yml \
+            .github/workflows/teardown.yml
+          git commit -q -m "Initial commit"
+
+      - name: Push main
+        run: |
+          git remote add demo "https://x-access-token:${GH_TOKEN}@github.com/${{ steps.names.outputs.repo }}.git"
+          git push demo demo-main:main
+
+      - name: Push feature branches and open draft PRs
+        run: |
+          for BRANCH in $(git branch -r --list 'origin/feature/*' | sed 's|.*origin/||'); do
+            COMMITS=$(git rev-list --count origin/main..origin/"$BRANCH")
+            if [ "$COMMITS" != "1" ]; then
+              echo "::error::$BRANCH is $COMMITS commits ahead of main (must be exactly 1; rebase and squash)"
+              exit 1
+            fi
+
+            git checkout -q -B work demo-main
+            git cherry-pick -x origin/"$BRANCH" >/dev/null
+            git push -q demo work:"$BRANCH"
+
+            if [ "${{ inputs.open_draft_prs }}" = "true" ]; then
+              TITLE=$(git log -1 --format=%s origin/"$BRANCH")
+              BODY=$(git log -1 --format=%b origin/"$BRANCH")
+              gh pr create --repo "${{ steps.names.outputs.repo }}" \
+                --draft --head "$BRANCH" --base main \
+                --title "$TITLE" --body "$BODY"
+            fi
+            echo "pushed $BRANCH"
+          done
+          git checkout -q demo-main
+
+      - name: Seed baseline CI history
+        run: |
+          COUNT="${{ inputs.baseline_pushes }}"
+          SPACING="${{ inputs.push_spacing_seconds }}"
+          MESSAGES=(
+            "docs: update changelog"
+            "chore: refresh sample telemetry notes"
+            "docs: clarify local development steps"
+            "chore: tidy changelog formatting"
+          )
+          touch CHANGELOG.md
+          for i in $(seq 1 "$COUNT"); do
+            echo "- $(date -u +%Y-%m-%dT%H:%M:%SZ) maintenance entry $i" >> CHANGELOG.md
+            git add CHANGELOG.md
+            git commit -q -m "${MESSAGES[$(( (i - 1) % ${#MESSAGES[@]} ))]}"
+            git push -q demo demo-main:main
+            echo "baseline push $i/$COUNT"
+            if [ "$i" -lt "$COUNT" ]; then
+              sleep "$SPACING"
+            fi
+          done
+
+      - name: Summary
+        run: |
+          {
+            echo "## Demo repo provisioned"
+            echo
+            echo "**Repo:** https://github.com/${{ steps.names.outputs.repo }}"
+            echo
+            echo "**Draft PRs:**"
+            gh pr list --repo "${{ steps.names.outputs.repo }}" --draft \
+              --json number,title,url \
+              --template '{{range .}}- [#{{.number}}] {{.title}} — {{.url}}{{"\n"}}{{end}}'
+            echo
+            echo "Baseline runs are still executing on GitHub-hosted runners;"
+            echo "check the Actions tab in ~30 minutes."
+          } >> "$GITHUB_STEP_SUMMARY"

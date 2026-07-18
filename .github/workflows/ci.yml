@@ -7,8 +7,9 @@ on:
   workflow_dispatch:
 
 env:
-  # Scales the session-fingerprint verification sweep (SEC-114).
-  ANVIL_WORKLOAD: "8"
+  # Scales the session-fingerprint verification sweep (SEC-114) and the
+  # retention-sweep row counts.
+  ANVIL_WORKLOAD: "120"
 
 jobs:
   frontend-checks:

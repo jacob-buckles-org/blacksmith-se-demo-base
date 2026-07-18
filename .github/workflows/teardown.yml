@@ -1,0 +1,60 @@
+name: "SE: Teardown old demo repos"
+
+# Archives (default) or deletes demo repos older than a cutoff. Demo repos
+# are discovered by the blacksmith-demo topic that provision.yml applies.
+# Requires org secret DEMO_PROVISION_TOKEN (repo + delete_repo scopes).
+
+on:
+  workflow_dispatch:
+    inputs:
+      older_than_days:
+        description: "Only touch repos created more than this many days ago"
+        default: "7"
+      action:
+        description: "What to do with matching repos"
+        type: choice
+        options: [archive, delete]
+        default: archive
+      dry_run:
+        description: "List matching repos without touching them"
+        type: boolean
+        default: true
+
+env:
+  TARGET_ORG: jacob-buckles-org
+  GH_TOKEN: ${{ secrets.DEMO_PROVISION_TOKEN }}
+
+jobs:
+  teardown:
+    name: Teardown (${{ inputs.action }}, >${{ inputs.older_than_days }}d)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Find and process old demo repos
+        run: |
+          CUTOFF=$(date -u -d "${{ inputs.older_than_days }} days ago" +%Y-%m-%dT%H:%M:%SZ)
+          echo "Cutoff: repos created before $CUTOFF"
+
+          MATCHES=$(gh repo list "$TARGET_ORG" --topic blacksmith-demo --limit 200 \
+            --json nameWithOwner,createdAt,isArchived \
+            --jq ".[] | select(.createdAt < \"$CUTOFF\") | select(.isArchived | not) | .nameWithOwner")
+
+          if [ -z "$MATCHES" ]; then
+            echo "No demo repos older than ${{ inputs.older_than_days }} days."
+            exit 0
+          fi
+
+          echo "$MATCHES"
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            echo "Dry run — nothing touched."
+            exit 0
+          fi
+
+          for REPO in $MATCHES; do
+            if [ "${{ inputs.action }}" = "delete" ]; then
+              gh repo delete "$REPO" --yes
+              echo "deleted $REPO"
+            else
+              gh repo archive "$REPO" --yes
+              echo "archived $REPO"
+            fi
+          done
