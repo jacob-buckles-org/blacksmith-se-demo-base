@@ -1,11 +1,12 @@
 name: "SE: Provision demo repo"
 
-# Creates a fresh customer demo repo from this base:
-#   1. Orphan "Initial commit" of main with SE-facing files scrubbed
-#      (CLAUDE.md, DEMO_RUNBOOK.md, provision/teardown workflows).
-#   2. Every feature/* branch cherry-picked on top and pushed, with a
-#      draft PR whose title/body come from the feature commit message.
-#   3. A burst of spaced trivial pushes to seed baseline CI history on
+# Creates a fresh customer demo repo from template/:
+#   1. Demo repo main = the contents of template/ as a fresh
+#      "Initial commit" (nothing outside template/ ever reaches it).
+#   2. Every feature/* branch (one commit touching only template/) is
+#      replayed onto it and pushed, with a draft PR whose title/body
+#      come from the feature commit message.
+#   3. A burst of spaced trivial pushes seeds baseline CI history on
 #      GitHub-hosted runners (the "before" side of the dashboard chart).
 #
 # Requires org secret DEMO_PROVISION_TOKEN: a PAT with repo, workflow,
@@ -53,6 +54,21 @@ jobs:
           echo "repo=${TARGET_ORG}/${REPO}" >> "$GITHUB_OUTPUT"
           echo "Provisioning ${TARGET_ORG}/${REPO}"
 
+      - name: Validate feature branches
+        run: |
+          for BRANCH in $(git branch -r --list 'origin/feature/*' | sed 's|.*origin/||'); do
+            COMMITS=$(git rev-list --count origin/main..origin/"$BRANCH")
+            if [ "$COMMITS" != "1" ]; then
+              echo "::error::$BRANCH is $COMMITS commits ahead of main (must be exactly 1; rebase and squash)"
+              exit 1
+            fi
+            OUTSIDE=$(git diff --name-only origin/main..origin/"$BRANCH" | grep -v '^template/' || true)
+            if [ -n "$OUTSIDE" ]; then
+              echo "::error::$BRANCH touches files outside template/: $OUTSIDE"
+              exit 1
+            fi
+          done
+
       - name: Create demo repository
         run: |
           gh repo create "${{ steps.names.outputs.repo }}" --private \
@@ -60,17 +76,19 @@ jobs:
           # Topic makes demo repos discoverable for teardown + tracking.
           gh repo edit "${{ steps.names.outputs.repo }}" --add-topic blacksmith-demo
 
-      - name: Build scrubbed main
+      - name: Build demo main from template/
         run: |
           git config user.name "Anvil Analytics"
           git config user.email "eng@anvil-analytics.example"
 
           git checkout --orphan demo-main origin/main --
-          git rm -rqf --ignore-unmatch \
-            CLAUDE.md \
-            DEMO_RUNBOOK.md \
-            .github/workflows/provision.yml \
-            .github/workflows/teardown.yml
+          git rm -rqf .
+          git checkout origin/main -- template
+          # Hoist template contents (including dotfiles) to the repo root.
+          shopt -s dotglob
+          mv template/* .
+          rmdir template
+          git add -A
           git commit -q -m "Initial commit"
 
       - name: Push main
@@ -81,14 +99,11 @@ jobs:
       - name: Push feature branches and open draft PRs
         run: |
           for BRANCH in $(git branch -r --list 'origin/feature/*' | sed 's|.*origin/||'); do
-            COMMITS=$(git rev-list --count origin/main..origin/"$BRANCH")
-            if [ "$COMMITS" != "1" ]; then
-              echo "::error::$BRANCH is $COMMITS commits ahead of main (must be exactly 1; rebase and squash)"
-              exit 1
-            fi
-
             git checkout -q -B work demo-main
-            git cherry-pick -x origin/"$BRANCH" >/dev/null
+            # Replay the feature commit with the template/ prefix stripped
+            # (-p2 drops "a/" and "template/").
+            git diff origin/main..origin/"$BRANCH" | git apply -p2 --index
+            git log -1 --format=%B origin/"$BRANCH" | git commit -q -F -
             git push -q demo work:"$BRANCH"
 
             if [ "${{ inputs.open_draft_prs }}" = "true" ]; then

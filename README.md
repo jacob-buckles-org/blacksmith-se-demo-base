@@ -1,53 +1,64 @@
-# Anvil Analytics
+# Blacksmith SE Demo Base
 
-Usage analytics platform: high-volume telemetry ingest, per-tenant
-dashboards, and scheduled exports.
+Internal demo factory for Blacksmith SE demos. This repo stamps out
+fresh, one-per-demo customer repos that start in a deliberately slow
+"before" state, ready for a live Blacksmith migration on a call.
 
-## Repo layout
+**Start here:** [`DEMO_RUNBOOK.md`](DEMO_RUNBOOK.md) — talk track,
+persona presets, timings, and per-feature demo notes.
 
-| Path | What it is |
+## How it works
+
+```
+this repo                                per-demo repo
+─────────                                ─────────────
+template/            ── provision.yml ─▶ demo-<customer>-<yyyymmdd>
+  (demo app + its                          main: template/ contents,
+   slow workflows)                               fresh history
+feature/* branches   ───────────────────▶ feature branches + draft PRs
+```
+
+- **`template/`** is the entire demo repo: a realistic demo-customer app
+  (React/TS dashboard + Go API + Postgres, plus a Bazel subproject and
+  chunky data fixtures) with deliberately unoptimized GitHub Actions
+  workflows — everything on `ubuntu-latest`, zero caching, matrix
+  fan-out, per-run browser downloads. Only this directory reaches
+  customers; keep everything inside it in-character.
+- **`feature/*` branches** each hold exactly one commit adding one
+  Blacksmith feature to the template. Provisioning replays them onto the
+  demo repo and opens a draft PR per feature; you pick features at demo
+  time by which PRs you open (or generate them live with the migration
+  wizard/Codesmith — the PRs are the fallback).
+- **Root** (this level) is SE-facing only and never reaches customers:
+  this README, the runbook, `CLAUDE.md`, and the workflows below.
+
+## Workflows in this repo
+
+| Workflow | What it does |
 | --- | --- |
-| `frontend/` | React/TypeScript dashboard (Vite, MUI, Recharts) |
-| `backend/` | Go API service (chi, pgx, Postgres) |
-| `bazel/` | Offline export-integrity tooling (Bazel) |
-| `data/` | Sample telemetry exports used by load tests and docs |
+| `SE: Provision demo repo` | Creates `demo-<customer>-<yyyymmdd>` from `template/`, pushes feature branches, opens draft PRs, seeds baseline CI history |
+| `SE: Teardown old demo repos` | Archives/deletes repos tagged `blacksmith-demo` older than N days (dry-run by default) |
+| `Validate template` | Base-repo CI: fast correctness checks on `template/` changes |
 
-## Local development
+## Setup (one-time)
 
-Bring up Postgres and the API:
+Create the org secret `DEMO_PROVISION_TOKEN`: a PAT with `repo`,
+`workflow`, and `delete_repo` scopes on `jacob-buckles-org`.
 
-```sh
-docker compose up postgres backend
-```
+## Provisioning a demo
 
-Run the dashboard against it:
+Actions → **SE: Provision demo repo** → enter `customer_name`.
+**Provision the day before the call** — baseline history needs
+wall-clock time on GitHub's queue. Details, knobs, and the demo arc are
+in the runbook.
 
-```sh
-cd frontend
-npm install
-npm run dev
-```
+## Conventions
 
-The dashboard falls back to bundled sample data when the API is
-unreachable, so `npm run dev` alone also works.
-
-## Tests
-
-```sh
-# frontend
-cd frontend
-npm run lint && npm run typecheck && npm run test:unit
-npm run test:e2e            # needs `npx playwright install`
-
-# backend
-cd backend
-go test ./...
-DATABASE_URL=postgres://anvil:anvil@localhost:5432/anvil go test -tags integration ./internal/store/
-```
-
-## Notes
-
-- `backend/internal/events/` is generated — edit `backend/tools/genevents`
-  and re-run `go run ./tools/genevents` instead.
-- Session fingerprinting intentionally uses a slow KDF (SEC-114); the
-  `ANVIL_WORKLOAD` env var scales the verification sweep size in CI.
+- Feature branches: exactly **one commit ahead of main**, touching only
+  `template/`. Rebase + force-push after main changes; provisioning
+  fails loudly on drift.
+- Feature commit messages are customer-visible (subject → PR title,
+  body → PR body). Write them in-character.
+- The "before" CI must be slow *authentically* — the timing knob is
+  `ANVIL_WORKLOAD` in the template workflows (CPU-bound test sweeps, no
+  sleeps), so faster runners genuinely speed it up.

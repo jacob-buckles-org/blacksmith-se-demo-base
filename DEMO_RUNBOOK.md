@@ -1,17 +1,19 @@
-# SE Demo Runbook — Anvil Analytics
+# SE Demo Runbook
 
-SE-facing. This file, `CLAUDE.md`, and the provision/teardown workflows
-are scrubbed from demo repos at provision time — everything else in this
-repo is customer-visible.
+SE-facing. Only `template/` reaches customers — it is the entire demo
+repo (the demo app plus its slow workflows). Everything at the root of
+this repo is internal.
 
 ## What this repo is
 
-The source of truth for the mock customer **Anvil Analytics** (Node/TS
-dashboard + Go API + Postgres) with deliberately slow "before" CI, plus a
-provisioning workflow that stamps out one fresh demo repo per demo.
-Blacksmith features live on `feature/*` branches that become draft PRs in
-each demo repo — you choose features at demo time by which PRs you open,
-not at provision time.
+A provisioning factory: `template/` holds the demo-customer app (Node/TS
+dashboard + Go API + Postgres, branded in-character as "Anvil Analytics"
+so prospects browsing the demo repo see a realistic codebase) with
+deliberately slow "before" CI. `provision.yml` stamps out one fresh demo
+repo per demo from that directory. Blacksmith features live on
+`feature/*` branches that become draft PRs in each demo repo — you
+choose features at demo time by which PRs you open, not at provision
+time.
 
 ## Provisioning a demo repo
 
@@ -50,8 +52,9 @@ runners at `ANVIL_WORKLOAD: 200`:
 
 CI wall-clock ≈ 6–7 min; ~20–25 billable job-minutes per push.
 
-**Timing knob:** `ANVIL_WORKLOAD` (env at the top of `ci.yml` and
-`test.yml`) scales the CPU-bound "session fingerprint sweep" and the
+**Timing knob:** `ANVIL_WORKLOAD` (env at the top of the template's
+`ci.yml` and `test.yml`) scales the CPU-bound "session fingerprint
+sweep" and the
 integration row count. It's real compute, not sleeps — faster runners
 genuinely shrink it (which is the point). 120 ≈ 4-min CI wall; 200 ≈
 6–7 min; raise it for a slower "before", lower it for tight calls.
@@ -131,12 +134,14 @@ Merge-order caveats:
 
 ## Maintenance rules (base repo)
 
-- **Feature branches must stay exactly one commit ahead of main.**
-  Provisioning cherry-picks that single commit onto the demo repo's
-  fresh history and fails loudly otherwise. After changing main, rebase:
-  `git rebase main feature/X` (squash if needed) and force-push.
+- **Feature branches must stay exactly one commit ahead of main and
+  touch only `template/`.** Provisioning replays that single commit
+  onto the demo repo's fresh history and fails loudly otherwise. After
+  changing main, rebase: `git rebase main feature/X` (squash if needed)
+  and force-push.
 - Feature commit messages are customer-visible: subject = draft PR
   title, body = PR body. Write them in-character.
-- Keep `main` buyer-clean: nothing Blacksmith-branded outside
-  `feature/*` branches and the SE-facing files scrubbed at provision
-  (this file, `CLAUDE.md`, provision/teardown workflows).
+- Everything inside `template/` is customer-visible: keep it
+  in-character, and keep it free of Blacksmith references on main
+  (Blacksmith only appears in `feature/*` diffs). Root-level files
+  never reach demo repos.

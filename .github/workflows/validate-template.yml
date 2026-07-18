@@ -1,0 +1,110 @@
+name: Validate template
+
+# Base-repo CI: fast correctness checks so template/ changes can't break
+# demos. Deliberately quick (minimal workload, one Node version, one
+# browser) — the slow "before" experience belongs to demo repos, not here.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+env:
+  ANVIL_WORKLOAD: "1"
+
+jobs:
+  frontend:
+    name: Frontend checks
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: template/frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: template/frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm run test:unit
+
+      - name: Install Playwright (chromium)
+        run: npx playwright install --with-deps chromium
+
+      - name: Build
+        run: npm run build
+
+      - name: E2E tests (chromium)
+        run: npm run test:e2e -- --project=chromium
+
+  backend:
+    name: Backend checks
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: anvil
+          POSTGRES_PASSWORD: anvil
+          POSTGRES_DB: anvil
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U anvil"
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 15
+    defaults:
+      run:
+        working-directory: template/backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: template/backend/go.mod
+          cache-dependency-path: template/backend/go.sum
+
+      - name: Build and vet
+        run: |
+          go build ./...
+          go vet ./...
+          go vet -tags integration ./...
+
+      - name: Verify generated events are current
+        run: |
+          go run ./tools/genevents
+          git diff --exit-code internal/events/
+
+      - name: Unit tests
+        run: go test -count=1 ./...
+
+      - name: Integration tests
+        env:
+          DATABASE_URL: postgres://anvil:anvil@localhost:5432/anvil
+        run: go test -count=1 -tags integration ./internal/store/
+
+  workflows-lint:
+    name: Template workflow sanity
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Template workflows parse as YAML
+        run: |
+          for f in template/.github/workflows/*.yml; do
+            python3 -c "import yaml,sys; yaml.safe_load(open(sys.argv[1]))" "$f" && echo "ok: $f"
+          done
