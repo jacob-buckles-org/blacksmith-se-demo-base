@@ -15,7 +15,7 @@ this repo                                per-demo repo
 template/            ── provision.yml ─▶ demo-<customer>-<yyyymmdd>
   (demo app + its                          main: template/ contents,
    slow workflows)                               fresh history
-feature/* branches   ───────────────────▶ feature branches + draft PRs
+features/*.patch     ───────────────────▶ feature branches + draft PRs
 ```
 
 - **`template/`** is the entire demo repo: a realistic demo-customer app
@@ -24,11 +24,14 @@ feature/* branches   ───────────────────�
   workflows — everything on `ubuntu-latest`, zero caching, matrix
   fan-out, per-run browser downloads. Only this directory reaches
   customers; keep everything inside it in-character.
-- **`feature/*` branches** each hold exactly one commit adding one
-  Blacksmith feature to the template. Provisioning replays them onto the
-  demo repo and opens a draft PR per feature; you pick features at demo
+- **`features/NN-<name>.patch`** files each hold one commit adding one
+  Blacksmith feature to the template (`git format-patch` output, commit
+  message included). Provisioning applies each patch in the demo repo as
+  branch `feature/<name>` and opens a draft PR (subject → title, body →
+  body; the `NN` prefix controls PR order). You pick features at demo
   time by which PRs you open (or generate them live with the migration
-  wizard/Codesmith — the PRs are the fallback).
+  wizard/Codesmith — the PRs are the fallback). This base repo itself
+  has a single branch: `main`.
 - **Root** (this level) is SE-facing only and never reaches customers:
   this README, the runbook, `CLAUDE.md`, and the workflows below.
 
@@ -54,11 +57,23 @@ in the runbook.
 
 ## Conventions
 
-- Feature branches: exactly **one commit ahead of main**, touching only
-  `template/`. Rebase + force-push after main changes; provisioning
-  fails loudly on drift.
-- Feature commit messages are customer-visible (subject → PR title,
-  body → PR body). Write them in-character.
+- Feature patches touch only `template/` paths and contain exactly one
+  commit. Their commit messages are customer-visible (subject → PR
+  title, body → PR body) — write them in-character.
+- `Validate template` CI applies every patch to current `main`, so a
+  template change that breaks a patch fails loudly instead of at
+  provision time.
+- Editing a feature patch:
+
+  ```sh
+  git checkout -b tmp main
+  git am features/01-migrate-runners.patch   # patch -> commit
+  # ...edit files, then: git commit -a --amend
+  git format-patch -1 --stdout > features/01-migrate-runners.patch
+  git checkout main && git branch -D tmp
+  # commit the regenerated patch on main
+  ```
+
 - The "before" CI must be slow *authentically* — the timing knob is
   `ANVIL_WORKLOAD` in the template workflows (CPU-bound test sweeps, no
   sleeps), so faster runners genuinely speed it up.

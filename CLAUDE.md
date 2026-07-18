@@ -16,13 +16,17 @@ GitHub repo: https://github.com/jacob-buckles-org/blacksmith-se-demo-base
   `template/.github/workflows/`. Everything inside template/ is
   customer-visible — keep it in-character; refer to the customer
   generically ("the demo app") in root-level docs.
-- **`feature/*` branches** = one Blacksmith feature each, **exactly one
-  commit ahead of main, touching only `template/`**. provision.yml
-  validates both and replays each commit into demo repos (stripping the
-  template/ path prefix) as a draft PR; subject → PR title, body → PR
-  body, both customer-visible.
-- After changing main: `git rebase main feature/X`, squash to one
-  commit, force-push.
+- **`features/NN-<name>.patch`** = one Blacksmith feature each: a single
+  `git format-patch` commit touching only `template/` paths. The base
+  repo has NO feature branches — main is the only branch. provision.yml
+  applies each patch inside the demo repo (with `git am -p2` to strip
+  the template/ prefix) as branch `feature/<name>` plus a draft PR;
+  commit subject → PR title, body → PR body, both customer-visible.
+  The NN prefix sets PR creation order.
+- To edit a feature: `git am` the patch on a temp branch, amend, and
+  `git format-patch -1 --stdout` back over the file (recipe in
+  README.md). validate-template CI fails if any patch stops applying
+  to current main.
 
 ## Invariants to preserve
 

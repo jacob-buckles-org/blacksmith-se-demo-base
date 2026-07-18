@@ -1,0 +1,72 @@
+From c671f041c94ed03a736462e51acad74cc2a1c7a0 Mon Sep 17 00:00:00 2001
+From: Jacob Buckles <buckles@blacksmith.sh>
+Date: Sat, 18 Jul 2026 13:50:03 -0400
+Subject: [PATCH] Cache Docker layers with Blacksmith build-push-action
+
+Swap plain `docker build` for useblacksmith/setup-docker-builder +
+useblacksmith/build-push-action. Layers persist on a Blacksmith sticky
+disk keyed per Dockerfile, so unchanged layers (base image, npm ci, Go
+module downloads) are reused instead of rebuilt from scratch on every
+run. Requires Blacksmith runners (see the runner migration PR).
+---
+ template/.github/workflows/docker.yml | 38 +++++++++++++--------------
+ 1 file changed, 18 insertions(+), 20 deletions(-)
+
+diff --git a/template/.github/workflows/docker.yml b/template/.github/workflows/docker.yml
+index 0c9d54c..71a830e 100644
+--- a/template/.github/workflows/docker.yml
++++ b/template/.github/workflows/docker.yml
+@@ -21,17 +21,16 @@ jobs:
+         if: github.event_name != 'pull_request'
+         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+ 
+-      - name: Build image
+-        run: |
+-          IMAGE="ghcr.io/${GITHUB_REPOSITORY,,}/anvil-backend"
+-          docker build -t "$IMAGE:${GITHUB_SHA::7}" -t "$IMAGE:latest" backend/
++      - uses: useblacksmith/setup-docker-builder@v1
+ 
+-      - name: Push image
+-        if: github.event_name != 'pull_request'
+-        run: |
+-          IMAGE="ghcr.io/${GITHUB_REPOSITORY,,}/anvil-backend"
+-          docker push "$IMAGE:${GITHUB_SHA::7}"
+-          docker push "$IMAGE:latest"
++      - name: Build and push image
++        uses: useblacksmith/build-push-action@v2
++        with:
++          context: backend/
++          push: ${{ github.event_name != 'pull_request' }}
++          tags: |
++            ghcr.io/${{ github.repository }}/anvil-backend:${{ github.sha }}
++            ghcr.io/${{ github.repository }}/anvil-backend:latest
+ 
+   build-frontend:
+     name: Build frontend image
+@@ -43,14 +42,13 @@ jobs:
+         if: github.event_name != 'pull_request'
+         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+ 
+-      - name: Build image
+-        run: |
+-          IMAGE="ghcr.io/${GITHUB_REPOSITORY,,}/anvil-dashboard"
+-          docker build -t "$IMAGE:${GITHUB_SHA::7}" -t "$IMAGE:latest" frontend/
++      - uses: useblacksmith/setup-docker-builder@v1
+ 
+-      - name: Push image
+-        if: github.event_name != 'pull_request'
+-        run: |
+-          IMAGE="ghcr.io/${GITHUB_REPOSITORY,,}/anvil-dashboard"
+-          docker push "$IMAGE:${GITHUB_SHA::7}"
+-          docker push "$IMAGE:latest"
++      - name: Build and push image
++        uses: useblacksmith/build-push-action@v2
++        with:
++          context: frontend/
++          push: ${{ github.event_name != 'pull_request' }}
++          tags: |
++            ghcr.io/${{ github.repository }}/anvil-dashboard:${{ github.sha }}
++            ghcr.io/${{ github.repository }}/anvil-dashboard:latest
+-- 
+2.50.1 (Apple Git-155)
+

@@ -1,0 +1,102 @@
+From f6c9e66f61a2554fcce8232a9a2f552e557dbeb8 Mon Sep 17 00:00:00 2001
+From: Jacob Buckles <buckles@blacksmith.sh>
+Date: Sat, 18 Jul 2026 13:48:40 -0400
+Subject: [PATCH] Migrate CI to Blacksmith runners
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+One-line change per job: swap `runs-on: ubuntu-latest` for a Blacksmith
+runner size. Same Ubuntu images and action ecosystem, roughly 2x faster
+CPUs, half the per-minute price, and no concurrency limits.
+
+Sizes in this PR are a first pass (4 vCPU default, 8 vCPU for the
+frontend matrix, 2 vCPU for E2E) — Codesmith will recommend rightsizing
+once it has a few runs of data.
+
+Normally the Blacksmith migration wizard generates this PR automatically;
+this branch is the pre-baked fallback.
+---
+ template/.github/workflows/ci.yml     | 6 +++---
+ template/.github/workflows/docker.yml | 4 ++--
+ template/.github/workflows/test.yml   | 4 ++--
+ 3 files changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/template/.github/workflows/ci.yml b/template/.github/workflows/ci.yml
+index 705234e..24e45b3 100644
+--- a/template/.github/workflows/ci.yml
++++ b/template/.github/workflows/ci.yml
+@@ -14,7 +14,7 @@ env:
+ jobs:
+   frontend-checks:
+     name: Frontend (Node ${{ matrix.node }})
+-    runs-on: ubuntu-latest
++    runs-on: blacksmith-8vcpu-ubuntu-2404
+     strategy:
+       fail-fast: false
+       matrix:
+@@ -43,7 +43,7 @@ jobs:
+ 
+   backend-build:
+     name: Backend build
+-    runs-on: ubuntu-latest
++    runs-on: blacksmith-4vcpu-ubuntu-2404
+     defaults:
+       run:
+         working-directory: backend
+@@ -70,7 +70,7 @@ jobs:
+ 
+   backend-test:
+     name: Backend unit tests
+-    runs-on: ubuntu-latest
++    runs-on: blacksmith-4vcpu-ubuntu-2404
+     defaults:
+       run:
+         working-directory: backend
+diff --git a/template/.github/workflows/docker.yml b/template/.github/workflows/docker.yml
+index 0c9d54c..98e7c45 100644
+--- a/template/.github/workflows/docker.yml
++++ b/template/.github/workflows/docker.yml
+@@ -13,7 +13,7 @@ permissions:
+ jobs:
+   build-backend:
+     name: Build backend image
+-    runs-on: ubuntu-latest
++    runs-on: blacksmith-4vcpu-ubuntu-2404
+     steps:
+       - uses: actions/checkout@v4
+ 
+@@ -35,7 +35,7 @@ jobs:
+ 
+   build-frontend:
+     name: Build frontend image
+-    runs-on: ubuntu-latest
++    runs-on: blacksmith-4vcpu-ubuntu-2404
+     steps:
+       - uses: actions/checkout@v4
+ 
+diff --git a/template/.github/workflows/test.yml b/template/.github/workflows/test.yml
+index 38f3c6a..05f9841 100644
+--- a/template/.github/workflows/test.yml
++++ b/template/.github/workflows/test.yml
+@@ -12,7 +12,7 @@ env:
+ jobs:
+   backend-integration:
+     name: Backend integration (Postgres)
+-    runs-on: ubuntu-latest
++    runs-on: blacksmith-4vcpu-ubuntu-2404
+     services:
+       postgres:
+         image: postgres:16
+@@ -45,7 +45,7 @@ jobs:
+ 
+   e2e:
+     name: Dashboard E2E (Playwright)
+-    runs-on: ubuntu-latest
++    runs-on: blacksmith-2vcpu-ubuntu-2404
+     defaults:
+       run:
+         working-directory: frontend
+-- 
+2.50.1 (Apple Git-155)
+

@@ -3,9 +3,9 @@ name: "SE: Provision demo repo"
 # Creates a fresh customer demo repo from template/:
 #   1. Demo repo main = the contents of template/ as a fresh
 #      "Initial commit" (nothing outside template/ ever reaches it).
-#   2. Every feature/* branch (one commit touching only template/) is
-#      replayed onto it and pushed, with a draft PR whose title/body
-#      come from the feature commit message.
+#   2. Each features/NN-<name>.patch is applied as feature/<name> with a
+#      draft PR whose title/body come from the patch's commit message
+#      (patch order controls PR numbering).
 #   3. A burst of spaced trivial pushes seeds baseline CI history on
 #      GitHub-hosted runners (the "before" side of the dashboard chart).
 #
@@ -54,21 +54,6 @@ jobs:
           echo "repo=${TARGET_ORG}/${REPO}" >> "$GITHUB_OUTPUT"
           echo "Provisioning ${TARGET_ORG}/${REPO}"
 
-      - name: Validate feature branches
-        run: |
-          for BRANCH in $(git branch -r --list 'origin/feature/*' | sed 's|.*origin/||'); do
-            COMMITS=$(git rev-list --count origin/main..origin/"$BRANCH")
-            if [ "$COMMITS" != "1" ]; then
-              echo "::error::$BRANCH is $COMMITS commits ahead of main (must be exactly 1; rebase and squash)"
-              exit 1
-            fi
-            OUTSIDE=$(git diff --name-only origin/main..origin/"$BRANCH" | grep -v '^template/' || true)
-            if [ -n "$OUTSIDE" ]; then
-              echo "::error::$BRANCH touches files outside template/: $OUTSIDE"
-              exit 1
-            fi
-          done
-
       - name: Create demo repository
         run: |
           gh repo create "${{ steps.names.outputs.repo }}" --private \
@@ -96,24 +81,27 @@ jobs:
           git remote add demo "https://x-access-token:${GH_TOKEN}@github.com/${{ steps.names.outputs.repo }}.git"
           git push demo demo-main:main
 
-      - name: Push feature branches and open draft PRs
+      - name: Create feature branches from patches and open draft PRs
         run: |
-          for BRANCH in $(git branch -r --list 'origin/feature/*' | sed 's|.*origin/||'); do
-            git checkout -q -B work demo-main
-            # Replay the feature commit with the template/ prefix stripped
-            # (-p2 drops "a/" and "template/").
-            git diff origin/main..origin/"$BRANCH" | git apply -p2 --index
-            git log -1 --format=%B origin/"$BRANCH" | git commit -q -F -
-            git push -q demo work:"$BRANCH"
+          for PATCH in $(git ls-tree --name-only origin/main features/ | sort); do
+            # features/01-migrate-runners.patch -> feature/migrate-runners
+            NAME=$(basename "$PATCH" .patch | sed 's/^[0-9]*-//')
+            BRANCH="feature/$NAME"
+
+            git checkout -q -B "$BRANCH" demo-main
+            # Patch paths are template/-prefixed; -p2 drops "a/" and
+            # "template/" so they apply at the demo repo root.
+            git show "origin/main:$PATCH" | git am -q -p2
+            git push -q demo "$BRANCH"
 
             if [ "${{ inputs.open_draft_prs }}" = "true" ]; then
-              TITLE=$(git log -1 --format=%s origin/"$BRANCH")
-              BODY=$(git log -1 --format=%b origin/"$BRANCH")
+              TITLE=$(git log -1 --format=%s)
+              BODY=$(git log -1 --format=%b)
               gh pr create --repo "${{ steps.names.outputs.repo }}" \
                 --draft --head "$BRANCH" --base main \
                 --title "$TITLE" --body "$BODY"
             fi
-            echo "pushed $BRANCH"
+            echo "created $BRANCH from features/$PATCH"
           done
           git checkout -q demo-main
 

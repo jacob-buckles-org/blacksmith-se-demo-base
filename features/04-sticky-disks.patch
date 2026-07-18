@@ -1,0 +1,119 @@
+From fef96f70fae2e9eaad97b72383f410e4b31cf8b0 Mon Sep 17 00:00:00 2001
+From: Jacob Buckles <buckles@blacksmith.sh>
+Date: Sat, 18 Jul 2026 13:50:35 -0400
+Subject: [PATCH] Persist hot caches on Blacksmith sticky disks
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Mount npm, Go module/build, and Playwright browser caches as sticky
+disks. Unlike an artifact cache there is no download/extract step — the
+disk is hot-loaded into the runner in ~3s regardless of size, which is
+the right tool for multi-GB artifacts like browser binaries and Go build
+caches. Requires Blacksmith runners (see the runner migration PR); open
+after that one merges so checks run on Blacksmith.
+---
+ template/.github/workflows/ci.yml   | 30 +++++++++++++++++++++++++++++
+ template/.github/workflows/test.yml | 24 +++++++++++++++++++++++
+ 2 files changed, 54 insertions(+)
+
+diff --git a/template/.github/workflows/ci.yml b/template/.github/workflows/ci.yml
+index 705234e..e22f202 100644
+--- a/template/.github/workflows/ci.yml
++++ b/template/.github/workflows/ci.yml
+@@ -25,6 +25,12 @@ jobs:
+     steps:
+       - uses: actions/checkout@v4
+ 
++      - name: Mount npm cache
++        uses: useblacksmith/stickydisk@v1
++        with:
++          key: ${{ github.repository }}-npm
++          path: ~/.npm
++
+       - uses: actions/setup-node@v4
+         with:
+           node-version: ${{ matrix.node }}
+@@ -50,6 +56,18 @@ jobs:
+     steps:
+       - uses: actions/checkout@v4
+ 
++      - name: Mount Go module cache
++        uses: useblacksmith/stickydisk@v1
++        with:
++          key: ${{ github.repository }}-gomod
++          path: ~/go/pkg/mod
++
++      - name: Mount Go build cache
++        uses: useblacksmith/stickydisk@v1
++        with:
++          key: ${{ github.repository }}-gobuild
++          path: ~/.cache/go-build
++
+       - uses: actions/setup-go@v5
+         with:
+           go-version-file: backend/go.mod
+@@ -77,6 +95,18 @@ jobs:
+     steps:
+       - uses: actions/checkout@v4
+ 
++      - name: Mount Go module cache
++        uses: useblacksmith/stickydisk@v1
++        with:
++          key: ${{ github.repository }}-gomod
++          path: ~/go/pkg/mod
++
++      - name: Mount Go build cache
++        uses: useblacksmith/stickydisk@v1
++        with:
++          key: ${{ github.repository }}-gobuild
++          path: ~/.cache/go-build
++
+       - uses: actions/setup-go@v5
+         with:
+           go-version-file: backend/go.mod
+diff --git a/template/.github/workflows/test.yml b/template/.github/workflows/test.yml
+index 38f3c6a..2990526 100644
+--- a/template/.github/workflows/test.yml
++++ b/template/.github/workflows/test.yml
+@@ -33,6 +33,18 @@ jobs:
+     steps:
+       - uses: actions/checkout@v4
+ 
++      - name: Mount Go module cache
++        uses: useblacksmith/stickydisk@v1
++        with:
++          key: ${{ github.repository }}-gomod
++          path: ~/go/pkg/mod
++
++      - name: Mount Go build cache
++        uses: useblacksmith/stickydisk@v1
++        with:
++          key: ${{ github.repository }}-gobuild
++          path: ~/.cache/go-build
++
+       - uses: actions/setup-go@v5
+         with:
+           go-version-file: backend/go.mod
+@@ -52,6 +64,18 @@ jobs:
+     steps:
+       - uses: actions/checkout@v4
+ 
++      - name: Mount npm cache
++        uses: useblacksmith/stickydisk@v1
++        with:
++          key: ${{ github.repository }}-npm
++          path: ~/.npm
++
++      - name: Mount Playwright browser cache
++        uses: useblacksmith/stickydisk@v1
++        with:
++          key: ${{ github.repository }}-playwright
++          path: ~/.cache/ms-playwright
++
+       - uses: actions/setup-node@v4
+         with:
+           node-version: 22
+-- 
+2.50.1 (Apple Git-155)
+

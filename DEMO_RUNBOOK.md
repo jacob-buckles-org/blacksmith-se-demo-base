@@ -10,10 +10,10 @@ A provisioning factory: `template/` holds the demo-customer app (Node/TS
 dashboard + Go API + Postgres, branded in-character as "Anvil Analytics"
 so prospects browsing the demo repo see a realistic codebase) with
 deliberately slow "before" CI. `provision.yml` stamps out one fresh demo
-repo per demo from that directory. Blacksmith features live on
-`feature/*` branches that become draft PRs in each demo repo — you
-choose features at demo time by which PRs you open, not at provision
-time.
+repo per demo from that directory. Blacksmith features live as patch
+files in `features/` that become branches + draft PRs in each demo repo
+— you choose features at demo time by which PRs you open, not at
+provision time.
 
 ## Provisioning a demo repo
 
@@ -84,29 +84,28 @@ genuinely shrink it (which is the point). 120 ≈ 4-min CI wall; 200 ≈
 
 ## Feature PR toolkit
 
-Every demo repo gets these draft PRs (titles = branch commit subjects).
-Preferred path: generate live with the wizard/Codesmith; the PR is the
-zero-dead-air fallback.
+Every demo repo gets these draft PRs, in this order (PR #1–#7), created
+from the patches in `features/`. Preferred path: generate live with the
+wizard/Codesmith; the PR is the zero-dead-air fallback.
 
-| Branch | What it shows | Notes |
-| --- | --- | --- |
-| `feature/migrate-runners` | runs-on swap, 2x CPU at half price | Wizard generates this live — prefer that |
-| `feature/dependency-caching` | npm/Go/Playwright caches via standard actions | Blacksmith transparently accelerates `actions/cache` & `setup-*` — no forked actions |
-| `feature/docker-caching` | `useblacksmith/build-push-action` layer cache | 2nd run is the payoff — build twice on the call |
-| `feature/sticky-disks` | hot-mounted cache disks, ~3s regardless of size | Overlaps dependency-caching — pick ONE per demo |
-| `feature/git-checkout-caching` | `useblacksmith/checkout` drop-in | Repo has 22MB fixtures + chunky history on purpose |
-| `feature/static-ip` | CI → IP-allowlisted prod replica | Skips cleanly until `REPLICA_DATABASE_URL` secret set |
-| `feature/bazel-caching` | zero-config Bazel remote cache | Bazel workflow is paths-gated; trigger via workflow_dispatch |
+| PR | Patch | What it shows | Notes |
+| --- | --- | --- | --- |
+| #1 | `01-migrate-runners` | runs-on swap, 2x CPU at half price | Wizard generates this live — prefer that |
+| #2 | `02-dependency-caching` | npm/Go/Playwright caches via standard actions | Blacksmith transparently accelerates `actions/cache` & `setup-*` — no forked actions |
+| #3 | `03-docker-caching` | `useblacksmith/build-push-action` layer cache | 2nd run is the payoff — build twice on the call |
+| #4 | `04-sticky-disks` | hot-mounted cache disks, ~3s regardless of size | Overlaps dependency-caching — pick ONE per demo |
+| #5 | `05-git-checkout-caching` | `useblacksmith/checkout` drop-in | Repo has 22MB fixtures + chunky history on purpose |
+| #6 | `06-static-ip` | CI → IP-allowlisted prod replica | Skips cleanly until `REPLICA_DATABASE_URL` secret set |
+| #7 | `07-bazel-caching` | zero-config Bazel remote cache | Bazel workflow is paths-gated; trigger via workflow_dispatch |
 
 Merge-order caveats:
 
-- Open `feature/sticky-disks` / `feature/docker-caching` **after** the
-  runner migration merges — they need Blacksmith runners for checks to
-  pass (PR checks run against the merge ref, so they go green once main
-  has the migration).
-- `feature/dependency-caching` and `feature/sticky-disks` touch the same
-  lines; merging both will conflict. They solve the same problem — pick
-  per persona.
+- Mark the sticky-disks / docker-caching PRs ready **after** the runner
+  migration merges — they need Blacksmith runners for checks to pass
+  (PR checks run against the merge ref, so they go green once main has
+  the migration).
+- dependency-caching and sticky-disks touch the same lines; merging both
+  will conflict. They solve the same problem — pick per persona.
 
 ## Persona presets (which PRs to open)
 
@@ -134,14 +133,13 @@ Merge-order caveats:
 
 ## Maintenance rules (base repo)
 
-- **Feature branches must stay exactly one commit ahead of main and
-  touch only `template/`.** Provisioning replays that single commit
-  onto the demo repo's fresh history and fails loudly otherwise. After
-  changing main, rebase: `git rebase main feature/X` (squash if needed)
-  and force-push.
-- Feature commit messages are customer-visible: subject = draft PR
-  title, body = PR body. Write them in-character.
+- **Features are patch files** (`features/NN-<name>.patch`): one commit
+  each, touching only `template/` paths. The base repo has no feature
+  branches — main is the only branch. Editing recipe is in README.md;
+  `Validate template` CI fails if a template change breaks a patch.
+- Patch commit messages are customer-visible: subject = draft PR title,
+  body = PR body. Write them in-character.
 - Everything inside `template/` is customer-visible: keep it
-  in-character, and keep it free of Blacksmith references on main
-  (Blacksmith only appears in `feature/*` diffs). Root-level files
-  never reach demo repos.
+  in-character, and keep it free of Blacksmith references (Blacksmith
+  only appears inside the feature patches). Root-level files never
+  reach demo repos.
