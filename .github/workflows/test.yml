@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 env:
-  ANVIL_WORKLOAD: "120"
+  ANVIL_WORKLOAD: "200"
 
 jobs:
   backend-integration:
