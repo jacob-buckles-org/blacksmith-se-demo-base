@@ -40,7 +40,7 @@ features/*.patch     ───────────────────�
 | Workflow | What it does |
 | --- | --- |
 | `SE: Provision demo repo` | Creates `demo-<customer>-<yyyymmdd>` from `template/`, pushes feature branches, opens draft PRs, seeds baseline CI history |
-| `SE: Teardown old demo repos` | Archives/deletes repos tagged `blacksmith-demo` older than N days (dry-run by default) |
+| `SE: Teardown old demo repos` | Archives/deletes repos tagged `blacksmith-se-demo-generated` older than N days (dry-run by default) |
 | `Validate template` | Base-repo CI: fast correctness checks on `template/` changes |
 
 ## Setup (one-time)

@@ -34,7 +34,7 @@ wall-clock time on GitHub's queue. Or keep 2–3 pre-seeded repos warm.
    until the call — that's the show.
 
 Cleanup: **SE: Teardown old demo repos** (dry-run by default) archives or
-deletes repos with the `blacksmith-demo` topic older than N days.
+deletes repos with the `blacksmith-se-demo-generated` topic older than N days.
 
 ## The "before" state (what the customer sees)
 

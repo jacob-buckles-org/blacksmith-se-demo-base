@@ -1,7 +1,7 @@
 name: "SE: Teardown old demo repos"
 
 # Archives (default) or deletes demo repos older than a cutoff. Demo repos
-# are discovered by the blacksmith-demo topic that provision.yml applies.
+# are discovered by the blacksmith-se-demo-generated topic that provision.yml applies.
 # Requires org secret DEMO_PROVISION_TOKEN (repo + delete_repo scopes).
 
 on:
@@ -34,7 +34,7 @@ jobs:
           CUTOFF=$(date -u -d "${{ inputs.older_than_days }} days ago" +%Y-%m-%dT%H:%M:%SZ)
           echo "Cutoff: repos created before $CUTOFF"
 
-          MATCHES=$(gh repo list "$TARGET_ORG" --topic blacksmith-demo --limit 200 \
+          MATCHES=$(gh repo list "$TARGET_ORG" --topic blacksmith-se-demo-generated --limit 200 \
             --json nameWithOwner,createdAt,isArchived \
             --jq ".[] | select(.createdAt < \"$CUTOFF\") | select(.isArchived | not) | .nameWithOwner")
 

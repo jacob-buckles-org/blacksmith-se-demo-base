@@ -42,5 +42,5 @@ GitHub repo: https://github.com/jacob-buckles-org/blacksmith-se-demo-base
   dependency-caching branch deliberately uses standard `actions/cache` /
   `setup-node`/`setup-go`, which Blacksmith accelerates transparently.
   Don't "fix" it to use Blacksmith forks.
-- Demo repos are tagged with the `blacksmith-demo` topic (teardown
+- Demo repos are tagged with the `blacksmith-se-demo-generated` topic (teardown
   discovers them by it).

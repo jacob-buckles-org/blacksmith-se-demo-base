@@ -59,7 +59,7 @@ jobs:
           gh repo create "${{ steps.names.outputs.repo }}" --private \
             --description "Usage Analytics — service metrics dashboard"
           # Topic makes demo repos discoverable for teardown + tracking.
-          gh repo edit "${{ steps.names.outputs.repo }}" --add-topic blacksmith-demo
+          gh repo edit "${{ steps.names.outputs.repo }}" --add-topic blacksmith-se-demo-generated
 
       - name: Build demo main from template/
         run: |
