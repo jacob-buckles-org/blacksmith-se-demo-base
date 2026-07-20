@@ -1,4 +1,4 @@
-# Usage Analytics
+# Analytics Demo Application
 
 Usage analytics platform: high-volume telemetry ingest, per-tenant
 dashboards, and scheduled exports.

@@ -23,7 +23,7 @@ on:
         required: true
       baseline_pushes:
         description: "Trivial pushes to seed CI history (each triggers ~3 runs)"
-        default: "8"
+        default: "4"
       push_spacing_seconds:
         description: "Seconds between baseline pushes"
         default: "90"
@@ -50,7 +50,7 @@ jobs:
         id: names
         run: |
           SLUG=$(echo "${{ inputs.customer_name }}" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' '-' | sed 's/^-//;s/-$//')
-          REPO="demo-${SLUG}-$(date +%Y%m%d)"
+          REPO="demo-${SLUG}-$(date +%m%d)"
           echo "repo=${TARGET_ORG}/${REPO}" >> "$GITHUB_OUTPUT"
           echo "Provisioning ${TARGET_ORG}/${REPO}"
 
