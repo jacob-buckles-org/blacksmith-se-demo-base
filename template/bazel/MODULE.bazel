@@ -1,5 +1,0 @@
-"""Usage Analytics offline tooling — checksum utilities for export archives."""
-
-module(name = "metrics_tools", version = "0.3.0")
-
-bazel_dep(name = "rules_cc", version = "0.0.17")

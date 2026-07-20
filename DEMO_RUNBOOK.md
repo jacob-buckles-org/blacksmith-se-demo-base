@@ -23,9 +23,9 @@ wall-clock time on GitHub's queue. Or keep 2–3 pre-seeded repos warm.
 1. One-time setup: org secret `DEMO_PROVISION_TOKEN` — a PAT with
    `repo`, `workflow`, and `delete_repo` scopes on `jacob-buckles-org`.
 2. Actions → **SE: Provision demo repo** → Run workflow. Inputs:
-   - `customer_name` — becomes `demo-<slug>-<yyyymmdd>`
-   - `baseline_pushes` (default 8) — each triggers CI + Integration +
-     Docker, so 8 pushes ≈ 24 baseline runs for the before/after chart
+   - `customer_name` — becomes `se-demo-<slug>`
+   - `baseline_pushes` (default 4) — each triggers CI + Integration +
+     Docker, so 4 pushes ≈ 12 baseline runs for the before/after chart
    - `push_spacing_seconds` (default 90) — spreads runs so history looks
      organic
 3. The job summary links the new repo and its draft PRs.
@@ -84,7 +84,7 @@ genuinely shrink it (which is the point). 120 ≈ 4-min CI wall; 200 ≈
 
 ## Feature PR toolkit
 
-Every demo repo gets these draft PRs, in this order (PR #1–#7), created
+Every demo repo gets these draft PRs, in this order (PR #1–#6), created
 from the patches in `features/`. Preferred path: generate live with the
 wizard/Codesmith; the PR is the zero-dead-air fallback.
 
@@ -96,7 +96,6 @@ wizard/Codesmith; the PR is the zero-dead-air fallback.
 | #4 | `04-sticky-disks` | hot-mounted cache disks, ~3s regardless of size | Overlaps dependency-caching — pick ONE per demo |
 | #5 | `05-git-checkout-caching` | `useblacksmith/checkout` drop-in | Repo has 22MB fixtures + chunky history on purpose |
 | #6 | `06-static-ip` | CI → IP-allowlisted prod replica | Skips cleanly until `REPLICA_DATABASE_URL` secret set |
-| #7 | `07-bazel-caching` | zero-config Bazel remote cache | Bazel workflow is paths-gated; trigger via workflow_dispatch |
 
 Merge-order caveats:
 
@@ -112,7 +111,7 @@ Merge-order caveats:
 - **Docker-heavy startup:** migrate → docker-caching → sticky-disks.
   Build an image twice; 2nd build's layer-cache hit is the money shot.
 - **Monorepo enterprise:** migrate → dependency-caching →
-  git-checkout-caching → bazel-caching (dispatch the Bazel workflow).
+  git-checkout-caching.
 - **Security-sensitive fintech:** migrate → static-ip (have a tiny
   hosted Postgres allowlisting only the org's static IP; set
   `REPLICA_DATABASE_URL` in the demo repo) → dependency-caching. Mention
@@ -125,11 +124,9 @@ Merge-order caveats:
 - Live runner SSH debugging, ARM (`-arm` labels) and macOS runners, test
   analytics, automatic free tier upgrades — all demoable from the
   dashboard without repo changes.
-- Bazel edge case: `bazel.yml` only triggers on `bazel/**` changes or
-  manual dispatch, so it stays out of the Actions tab unless you want it.
-- If a customer browses code: `bazel/` is a small "export integrity
-  tooling" subproject; `data/` is "sample telemetry exports"; the slow
-  KDF tests are "SEC-114 compliance". It all reads in-character.
+- If a customer browses code: `data/` is "sample telemetry exports";
+  the slow KDF tests are "SEC-114 compliance". It all reads
+  in-character.
 
 ## Maintenance rules (base repo)
 

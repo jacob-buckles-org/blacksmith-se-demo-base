@@ -38,7 +38,7 @@ env:
 
 jobs:
   provision:
-    name: Provision demo-${{ inputs.customer_name }}
+    name: Provision se-demo-${{ inputs.customer_name }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -50,7 +50,7 @@ jobs:
         id: names
         run: |
           SLUG=$(echo "${{ inputs.customer_name }}" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' '-' | sed 's/^-//;s/-$//')
-          REPO="demo-${SLUG}-$(date +%m%d)"
+          REPO="se-demo-${SLUG}"
           echo "repo=${TARGET_ORG}/${REPO}" >> "$GITHUB_OUTPUT"
           echo "Provisioning ${TARGET_ORG}/${REPO}"
 

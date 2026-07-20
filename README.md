@@ -12,15 +12,15 @@ persona presets, timings, and per-feature demo notes.
 ```
 this repo                                per-demo repo
 ─────────                                ─────────────
-template/            ── provision.yml ─▶ demo-<customer>-<yyyymmdd>
+template/            ── provision.yml ─▶ se-demo-<customer>
   (demo app + its                          main: template/ contents,
    slow workflows)                               fresh history
 features/*.patch     ───────────────────▶ feature branches + draft PRs
 ```
 
 - **`template/`** is the entire demo repo: a realistic demo-customer app
-  (React/TS dashboard + Go API + Postgres, plus a Bazel subproject and
-  chunky data fixtures) with deliberately unoptimized GitHub Actions
+  (React/TS dashboard + Go API + Postgres, plus chunky data fixtures)
+  with deliberately unoptimized GitHub Actions
   workflows — everything on `ubuntu-latest`, zero caching, matrix
   fan-out, per-run browser downloads. Only this directory reaches
   customers; keep everything inside it in-character.
@@ -39,7 +39,7 @@ features/*.patch     ───────────────────�
 
 | Workflow | What it does |
 | --- | --- |
-| `SE: Provision demo repo` | Creates `demo-<customer>-<yyyymmdd>` from `template/`, pushes feature branches, opens draft PRs, seeds baseline CI history |
+| `SE: Provision demo repo` | Creates `se-demo-<customer>` from `template/`, pushes feature branches, opens draft PRs, seeds baseline CI history |
 | `SE: Teardown old demo repos` | Archives/deletes repos tagged `blacksmith-se-demo-generated` older than N days (dry-run by default) |
 | `Validate template` | Base-repo CI: fast correctness checks on `template/` changes |
 

@@ -9,7 +9,6 @@ dashboards, and scheduled exports.
 | --- | --- |
 | `frontend/` | React/TypeScript dashboard (Vite, MUI, Recharts) |
 | `backend/` | Go API service (chi, pgx, Postgres) |
-| `bazel/` | Offline export-integrity tooling (Bazel) |
 | `data/` | Sample telemetry exports used by load tests and docs |
 
 ## Local development
