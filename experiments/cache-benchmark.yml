@@ -1,0 +1,72 @@
+name: Cache benchmark
+
+# Personal instrument (NOT part of the demo) to confirm whether Blacksmith's
+# colocated cache restores faster than GitHub Actions' cache, controlling for
+# payload size. Two jobs run the SAME fixed-size cache restore — one on a
+# GitHub-hosted runner, one on a Blacksmith runner (which transparently
+# redirects actions/cache to the colocated cache). The restore step is
+# bracketed by timestamps so you get a clean wall-time number per side.
+#
+# Usage:
+#   1. Copy this file into a POOL repo's .github/workflows/ (a repo where the
+#      Blacksmith app is installed — a pool repo qualifies). It is NOT shipped
+#      into demo repos on purpose; it lives under experiments/ in the base repo.
+#   2. Dispatch it once — both sides miss and populate their cache.
+#   3. Dispatch it again — both sides hit; compare "restore wall time" in the
+#      two jobs' logs (and the du size to confirm the payload transferred).
+#
+# Caveat: the restore step is transfer-dominated for a ~300MB incompressible
+# blob, so it mostly reflects cache-backend speed — but a Blacksmith runner
+# also has faster disk for extraction, so it isn't a 100% pure network number.
+
+on:
+  workflow_dispatch:
+    inputs:
+      payload_mb:
+        description: "Payload size to cache (MB)"
+        default: "300"
+
+jobs:
+  bench:
+    name: restore on ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-latest, blacksmith-4vcpu-ubuntu-2404]
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - name: Prepare payload dir
+        run: mkdir -p payload
+
+      - name: Mark restore start
+        id: start
+        run: echo "t=$(date +%s.%N)" >> "$GITHUB_OUTPUT"
+
+      - name: Restore cache (this step is what we time)
+        id: restore
+        uses: actions/cache/restore@v4
+        with:
+          path: payload
+          key: cache-benchmark-${{ inputs.payload_mb }}mb-v1
+
+      - name: Report restore time
+        run: |
+          END=$(date +%s.%N)
+          START="${{ steps.start.outputs.t }}"
+          echo "runner:       ${{ matrix.runner }}"
+          echo "cache hit:    ${{ steps.restore.outputs.cache-hit }}"
+          awk -v s="$START" -v e="$END" 'BEGIN { printf "restore wall time: %.2fs\n", e - s }'
+          du -sh payload 2>/dev/null || true
+
+      - name: Populate payload on miss
+        if: steps.restore.outputs.cache-hit != 'true'
+        run: |
+          dd if=/dev/urandom of=payload/blob bs=1M count=${{ inputs.payload_mb }} status=none
+          echo "generated ${{ inputs.payload_mb }}MB payload"
+
+      - name: Save cache on miss
+        if: steps.restore.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: payload
+          key: cache-benchmark-${{ inputs.payload_mb }}mb-v1
