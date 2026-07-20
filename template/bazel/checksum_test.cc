@@ -5,17 +5,17 @@
 
 int main() {
   // Empty input.
-  assert(anvil::Fletcher64("") == 0);
+  assert(metrics::Fletcher64("") == 0);
 
   // Deterministic for identical input.
-  assert(anvil::Fletcher64("anvil") == anvil::Fletcher64("anvil"));
+  assert(metrics::Fletcher64("metrics") == metrics::Fletcher64("metrics"));
 
   // Order-sensitive: transposed bytes must differ.
-  assert(anvil::Fletcher64("ab") != anvil::Fletcher64("ba"));
+  assert(metrics::Fletcher64("ab") != metrics::Fletcher64("ba"));
 
   // Formatting is fixed-width lowercase hex.
-  assert(anvil::FormatChecksum(0).size() == 16);
-  assert(anvil::FormatChecksum(255) == "00000000000000ff");
+  assert(metrics::FormatChecksum(0).size() == 16);
+  assert(metrics::FormatChecksum(255) == "00000000000000ff");
 
   std::cout << "checksum_test: all assertions passed" << std::endl;
   return 0;

@@ -75,5 +75,5 @@ in the runbook.
   ```
 
 - The "before" CI must be slow *authentically* — the timing knob is
-  `ANVIL_WORKLOAD` in the template workflows (CPU-bound test sweeps, no
+  `METRICS_WORKLOAD` in the template workflows (CPU-bound test sweeps, no
   sleeps), so faster runners genuinely speed it up.

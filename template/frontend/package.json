@@ -1,5 +1,5 @@
 {
-  "name": "@anvil-analytics/dashboard",
+  "name": "@usage-analytics/dashboard",
   "private": true,
   "version": "2.4.1",
   "type": "module",

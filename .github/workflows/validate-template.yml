@@ -11,7 +11,7 @@ on:
   workflow_dispatch:
 
 env:
-  ANVIL_WORKLOAD: "1"
+  METRICS_WORKLOAD: "1"
 
 jobs:
   frontend:
@@ -57,13 +57,13 @@ jobs:
       postgres:
         image: postgres:16
         env:
-          POSTGRES_USER: anvil
-          POSTGRES_PASSWORD: anvil
-          POSTGRES_DB: anvil
+          POSTGRES_USER: metrics
+          POSTGRES_PASSWORD: metrics
+          POSTGRES_DB: metrics
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U anvil"
+          --health-cmd "pg_isready -U metrics"
           --health-interval 2s
           --health-timeout 5s
           --health-retries 15
@@ -94,7 +94,7 @@ jobs:
 
       - name: Integration tests
         env:
-          DATABASE_URL: postgres://anvil:anvil@localhost:5432/anvil
+          DATABASE_URL: postgres://metrics:metrics@localhost:5432/metrics
         run: go test -count=1 -tags integration ./internal/store/
 
   workflows-lint:

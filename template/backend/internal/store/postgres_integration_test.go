@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/anvil-analytics/anvil/backend/internal/telemetry"
+	"github.com/usage-analytics/metrics/backend/internal/telemetry"
 )
 
 // Integration tests require a live postgres; run with:

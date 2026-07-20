@@ -3,7 +3,7 @@ package store
 import (
 	"context"
 
-	"github.com/anvil-analytics/anvil/backend/internal/telemetry"
+	"github.com/usage-analytics/metrics/backend/internal/telemetry"
 )
 
 // MemoryStore serves the deterministic sample day; used when no

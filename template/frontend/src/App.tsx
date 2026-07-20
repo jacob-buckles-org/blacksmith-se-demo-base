@@ -37,7 +37,7 @@ export default function App() {
         <Toolbar>
           <BoltIcon color="primary" sx={{ mr: 1 }} />
           <Typography variant="h6" sx={{ flexGrow: 1, fontWeight: 700 }}>
-            Anvil Analytics
+            Usage Analytics
           </Typography>
           <Chip
             size="small"

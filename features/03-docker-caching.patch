@@ -22,14 +22,14 @@ index 0c9d54c..71a830e 100644
  
 -      - name: Build image
 -        run: |
--          IMAGE="ghcr.io/${GITHUB_REPOSITORY,,}/anvil-backend"
+-          IMAGE="ghcr.io/${GITHUB_REPOSITORY,,}/metrics-backend"
 -          docker build -t "$IMAGE:${GITHUB_SHA::7}" -t "$IMAGE:latest" backend/
 +      - uses: useblacksmith/setup-docker-builder@v1
  
 -      - name: Push image
 -        if: github.event_name != 'pull_request'
 -        run: |
--          IMAGE="ghcr.io/${GITHUB_REPOSITORY,,}/anvil-backend"
+-          IMAGE="ghcr.io/${GITHUB_REPOSITORY,,}/metrics-backend"
 -          docker push "$IMAGE:${GITHUB_SHA::7}"
 -          docker push "$IMAGE:latest"
 +      - name: Build and push image
@@ -38,8 +38,8 @@ index 0c9d54c..71a830e 100644
 +          context: backend/
 +          push: ${{ github.event_name != 'pull_request' }}
 +          tags: |
-+            ghcr.io/${{ github.repository }}/anvil-backend:${{ github.sha }}
-+            ghcr.io/${{ github.repository }}/anvil-backend:latest
++            ghcr.io/${{ github.repository }}/metrics-backend:${{ github.sha }}
++            ghcr.io/${{ github.repository }}/metrics-backend:latest
  
    build-frontend:
      name: Build frontend image
@@ -49,14 +49,14 @@ index 0c9d54c..71a830e 100644
  
 -      - name: Build image
 -        run: |
--          IMAGE="ghcr.io/${GITHUB_REPOSITORY,,}/anvil-dashboard"
+-          IMAGE="ghcr.io/${GITHUB_REPOSITORY,,}/metrics-dashboard"
 -          docker build -t "$IMAGE:${GITHUB_SHA::7}" -t "$IMAGE:latest" frontend/
 +      - uses: useblacksmith/setup-docker-builder@v1
  
 -      - name: Push image
 -        if: github.event_name != 'pull_request'
 -        run: |
--          IMAGE="ghcr.io/${GITHUB_REPOSITORY,,}/anvil-dashboard"
+-          IMAGE="ghcr.io/${GITHUB_REPOSITORY,,}/metrics-dashboard"
 -          docker push "$IMAGE:${GITHUB_SHA::7}"
 -          docker push "$IMAGE:latest"
 +      - name: Build and push image
@@ -65,8 +65,8 @@ index 0c9d54c..71a830e 100644
 +          context: frontend/
 +          push: ${{ github.event_name != 'pull_request' }}
 +          tags: |
-+            ghcr.io/${{ github.repository }}/anvil-dashboard:${{ github.sha }}
-+            ghcr.io/${{ github.repository }}/anvil-dashboard:latest
++            ghcr.io/${{ github.repository }}/metrics-dashboard:${{ github.sha }}
++            ghcr.io/${{ github.repository }}/metrics-dashboard:latest
 -- 
 2.50.1 (Apple Git-155)
 

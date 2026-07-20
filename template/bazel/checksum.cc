@@ -2,7 +2,7 @@
 
 #include <cstdio>
 
-namespace anvil {
+namespace metrics {
 
 uint64_t Fletcher64(const std::string& data) {
   uint64_t sum1 = 0;
@@ -20,4 +20,4 @@ std::string FormatChecksum(uint64_t checksum) {
   return std::string(buf);
 }
 
-}  // namespace anvil
+}  // namespace metrics

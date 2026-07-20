@@ -1,4 +1,4 @@
-module github.com/anvil-analytics/anvil/backend
+module github.com/usage-analytics/metrics/backend
 
 go 1.24
 

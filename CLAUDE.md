@@ -11,7 +11,7 @@ GitHub repo: https://github.com/jacob-buckles-org/blacksmith-se-demo-base
 - **Root** = SE-facing only: README, runbook, this file, and the
   provision/teardown/validate workflows. Never reaches customers.
 - **`template/`** = the entire demo repo that provisioning copies out:
-  the demo-customer app ("Anvil Analytics": React/TS dashboard, Go API,
+  the demo-customer app ("Usage Analytics": React/TS dashboard, Go API,
   Postgres) plus its deliberately slow, cache-free workflows in
   `template/.github/workflows/`. Everything inside template/ is
   customer-visible — keep it in-character; refer to the customer
@@ -31,7 +31,7 @@ GitHub repo: https://github.com/jacob-buckles-org/blacksmith-se-demo-base
 ## Invariants to preserve
 
 - "Before" CI (in template/) must stay slow *authentically*: no sleeps.
-  The timing knob is `ANVIL_WORKLOAD` (env in template ci.yml/test.yml)
+  The timing knob is `METRICS_WORKLOAD` (env in template ci.yml/test.yml)
   driving CPU-bound test sweeps — real work that faster runners
   genuinely speed up. Base-repo validation pins it to 1 for speed.
 - `template/backend/internal/events/` is generated: edit

@@ -81,7 +81,7 @@ index 78d5a89..fdf595a 100644
 --- a/template/README.md
 +++ b/template/README.md
 @@ -45,6 +45,16 @@ go test ./...
- DATABASE_URL=postgres://anvil:anvil@localhost:5432/anvil go test -tags integration ./internal/store/
+ DATABASE_URL=postgres://metrics:metrics@localhost:5432/metrics go test -tags integration ./internal/store/
  ```
  
 +## Production replica access from CI

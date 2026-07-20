@@ -7,7 +7,7 @@ this repo is internal.
 ## What this repo is
 
 A provisioning factory: `template/` holds the demo-customer app (Node/TS
-dashboard + Go API + Postgres, branded in-character as "Anvil Analytics"
+dashboard + Go API + Postgres, branded in-character as "Usage Analytics"
 so prospects browsing the demo repo see a realistic codebase) with
 deliberately slow "before" CI. `provision.yml` stamps out one fresh demo
 repo per demo from that directory. Blacksmith features live as patch
@@ -39,7 +39,7 @@ deletes repos with the `blacksmith-demo` topic older than N days.
 ## The "before" state (what the customer sees)
 
 All workflows on `ubuntu-latest`, zero caching. Measured on GitHub-hosted
-runners at `ANVIL_WORKLOAD: 200`:
+runners at `METRICS_WORKLOAD: 200`:
 
 | Job | Duration | Deliberate inefficiency |
 | --- | --- | --- |
@@ -52,7 +52,7 @@ runners at `ANVIL_WORKLOAD: 200`:
 
 CI wall-clock ≈ 6–7 min; ~20–25 billable job-minutes per push.
 
-**Timing knob:** `ANVIL_WORKLOAD` (env at the top of the template's
+**Timing knob:** `METRICS_WORKLOAD` (env at the top of the template's
 `ci.yml` and `test.yml`) scales the CPU-bound "session fingerprint
 sweep" and the
 integration row count. It's real compute, not sleeps — faster runners
@@ -118,7 +118,7 @@ Merge-order caveats:
   `REPLICA_DATABASE_URL` in the demo repo) → dependency-caching. Mention
   SSH-into-runner debugging.
 - **Quick 15-min call:** migrate only, dashboard before/after, cost
-  view. Lower `ANVIL_WORKLOAD` to ~80 first so runs fit.
+  view. Lower `METRICS_WORKLOAD` to ~80 first so runs fit.
 
 ## Extras in the toolkit
 

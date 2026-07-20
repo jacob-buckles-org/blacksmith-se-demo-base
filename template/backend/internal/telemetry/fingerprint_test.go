@@ -32,11 +32,11 @@ func TestFingerprintSessionRejectsEmptyToken(t *testing.T) {
 }
 
 // Session-fingerprint verification sweep. Batch size scales with
-// ANVIL_WORKLOAD so staging and prod tenants run proportionally larger
+// METRICS_WORKLOAD so staging and prod tenants run proportionally larger
 // sweeps (see SEC-114).
 func TestFingerprintSweepNoCollisions(t *testing.T) {
 	workload := 1.0
-	if v := os.Getenv("ANVIL_WORKLOAD"); v != "" {
+	if v := os.Getenv("METRICS_WORKLOAD"); v != "" {
 		if parsed, err := strconv.ParseFloat(v, 64); err == nil {
 			workload = parsed
 		}

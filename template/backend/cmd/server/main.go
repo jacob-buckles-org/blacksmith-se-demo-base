@@ -10,12 +10,12 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/anvil-analytics/anvil/backend/internal/api"
-	"github.com/anvil-analytics/anvil/backend/internal/store"
+	"github.com/usage-analytics/metrics/backend/internal/api"
+	"github.com/usage-analytics/metrics/backend/internal/store"
 )
 
 func main() {
-	addr := os.Getenv("ANVIL_ADDR")
+	addr := os.Getenv("METRICS_ADDR")
 	if addr == "" {
 		addr = ":8080"
 	}
@@ -56,7 +56,7 @@ func main() {
 		_ = srv.Shutdown(shutdownCtx)
 	}()
 
-	log.Printf("anvil backend listening on %s", addr)
+	log.Printf("metrics backend listening on %s", addr)
 	if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		log.Fatal(err)
 	}

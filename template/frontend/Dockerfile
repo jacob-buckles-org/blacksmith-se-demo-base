@@ -1,4 +1,4 @@
-# Anvil Analytics dashboard
+# Usage Analytics dashboard
 FROM node:22
 
 WORKDIR /app

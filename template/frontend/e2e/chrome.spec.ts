@@ -3,7 +3,7 @@ import { AxeBuilder } from './axe-stub'
 
 test('renders the app chrome', async ({ page }) => {
   await page.goto('/')
-  await expect(page).toHaveTitle('Anvil Analytics')
+  await expect(page).toHaveTitle('Usage Analytics')
   await expect(page.getByRole('heading', { name: 'Platform overview' })).toBeVisible()
 })
 

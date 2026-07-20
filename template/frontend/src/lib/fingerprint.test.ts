@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest'
 import { fingerprintBatch, fingerprintSession } from './fingerprint'
 
 // Session-fingerprint verification sweeps. The KDF is intentionally slow
-// (see SEC-114); batch size scales with ANVIL_WORKLOAD so staging and prod
+// (see SEC-114); batch size scales with METRICS_WORKLOAD so staging and prod
 // tenants can run proportionally larger sweeps.
-const workload = Number(process.env.ANVIL_WORKLOAD ?? '1')
+const workload = Number(process.env.METRICS_WORKLOAD ?? '1')
 const batchSize = Math.max(1, Math.round(120 * workload))
 
 describe('fingerprintSession', () => {

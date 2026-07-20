@@ -30,7 +30,7 @@ on:
       open_draft_prs:
         description: "Open draft PRs for feature branches"
         type: boolean
-        default: true
+        default: false
 
 env:
   TARGET_ORG: jacob-buckles-org
@@ -57,14 +57,14 @@ jobs:
       - name: Create demo repository
         run: |
           gh repo create "${{ steps.names.outputs.repo }}" --private \
-            --description "Anvil Analytics — usage analytics platform"
+            --description "Usage Analytics — service metrics dashboard"
           # Topic makes demo repos discoverable for teardown + tracking.
           gh repo edit "${{ steps.names.outputs.repo }}" --add-topic blacksmith-demo
 
       - name: Build demo main from template/
         run: |
-          git config user.name "Anvil Analytics"
-          git config user.email "eng@anvil-analytics.example"
+          git config user.name "Usage Analytics"
+          git config user.email "eng@usage-analytics.example"
 
           git checkout --orphan demo-main origin/main --
           git rm -rqf .

@@ -16,6 +16,6 @@ int main(int argc, char** argv) {
   }
   std::ostringstream contents;
   contents << in.rdbuf();
-  std::cout << anvil::FormatChecksum(anvil::Fletcher64(contents.str())) << std::endl;
+  std::cout << metrics::FormatChecksum(metrics::Fletcher64(contents.str())) << std::endl;
   return 0;
 }

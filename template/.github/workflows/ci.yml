@@ -9,7 +9,7 @@ on:
 env:
   # Scales the session-fingerprint verification sweep (SEC-114) and the
   # retention-sweep row counts.
-  ANVIL_WORKLOAD: "200"
+  METRICS_WORKLOAD: "200"
 
 jobs:
   frontend-checks:

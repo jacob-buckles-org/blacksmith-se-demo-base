@@ -23,13 +23,13 @@ jobs:
 
       - name: Build image
         run: |
-          IMAGE="ghcr.io/${GITHUB_REPOSITORY,,}/anvil-backend"
+          IMAGE="ghcr.io/${GITHUB_REPOSITORY,,}/metrics-backend"
           docker build -t "$IMAGE:${GITHUB_SHA::7}" -t "$IMAGE:latest" backend/
 
       - name: Push image
         if: github.event_name != 'pull_request'
         run: |
-          IMAGE="ghcr.io/${GITHUB_REPOSITORY,,}/anvil-backend"
+          IMAGE="ghcr.io/${GITHUB_REPOSITORY,,}/metrics-backend"
           docker push "$IMAGE:${GITHUB_SHA::7}"
           docker push "$IMAGE:latest"
 
@@ -45,12 +45,12 @@ jobs:
 
       - name: Build image
         run: |
-          IMAGE="ghcr.io/${GITHUB_REPOSITORY,,}/anvil-dashboard"
+          IMAGE="ghcr.io/${GITHUB_REPOSITORY,,}/metrics-dashboard"
           docker build -t "$IMAGE:${GITHUB_SHA::7}" -t "$IMAGE:latest" frontend/
 
       - name: Push image
         if: github.event_name != 'pull_request'
         run: |
-          IMAGE="ghcr.io/${GITHUB_REPOSITORY,,}/anvil-dashboard"
+          IMAGE="ghcr.io/${GITHUB_REPOSITORY,,}/metrics-dashboard"
           docker push "$IMAGE:${GITHUB_SHA::7}"
           docker push "$IMAGE:latest"

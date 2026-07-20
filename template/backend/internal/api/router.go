@@ -10,7 +10,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 
-	"github.com/anvil-analytics/anvil/backend/internal/telemetry"
+	"github.com/usage-analytics/metrics/backend/internal/telemetry"
 )
 
 // MetricsSource is the read-side contract the API serves from; satisfied

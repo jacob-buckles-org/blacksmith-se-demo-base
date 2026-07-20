@@ -10,19 +10,19 @@ import (
 	"testing"
 	"time"
 
-	"github.com/anvil-analytics/anvil/backend/internal/telemetry"
+	"github.com/usage-analytics/metrics/backend/internal/telemetry"
 )
 
 // Retention sweep coverage: verifies aggregation stays correct as the
 // metric_points table grows to production-shaped sizes. Row count scales
-// with ANVIL_WORKLOAD. Inserts are intentionally row-at-a-time — the
+// with METRICS_WORKLOAD. Inserts are intentionally row-at-a-time — the
 // retention worker's real write path — so this also exercises pool churn.
 func TestRetentionSweepAtScale(t *testing.T) {
 	pg := connectTestDB(t)
 	ctx := context.Background()
 
 	workload := 1.0
-	if v := os.Getenv("ANVIL_WORKLOAD"); v != "" {
+	if v := os.Getenv("METRICS_WORKLOAD"); v != "" {
 		if parsed, err := strconv.ParseFloat(v, 64); err == nil {
 			workload = parsed
 		}

@@ -2,13 +2,13 @@ services:
   postgres:
     image: postgres:16
     environment:
-      POSTGRES_USER: anvil
-      POSTGRES_PASSWORD: anvil
-      POSTGRES_DB: anvil
+      POSTGRES_USER: metrics
+      POSTGRES_PASSWORD: metrics
+      POSTGRES_DB: metrics
     ports:
       - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U anvil"]
+      test: ["CMD-SHELL", "pg_isready -U metrics"]
       interval: 2s
       timeout: 5s
       retries: 15
@@ -16,7 +16,7 @@ services:
   backend:
     build: ./backend
     environment:
-      DATABASE_URL: postgres://anvil:anvil@postgres:5432/anvil
+      DATABASE_URL: postgres://metrics:metrics@postgres:5432/metrics
     ports:
       - "8080:8080"
     depends_on:

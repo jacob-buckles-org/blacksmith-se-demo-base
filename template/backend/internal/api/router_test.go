@@ -8,7 +8,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/anvil-analytics/anvil/backend/internal/telemetry"
+	"github.com/usage-analytics/metrics/backend/internal/telemetry"
 )
 
 type stubSource struct {
