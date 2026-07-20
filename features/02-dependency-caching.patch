@@ -1,23 +1,23 @@
-From 201d682170d776aad69fd4eff06b36dbb934a7c6 Mon Sep 17 00:00:00 2001
+From 3b3a4c760196869529a8da897f47393b5c2c718b Mon Sep 17 00:00:00 2001
 From: Jacob Buckles <buckles@blacksmith.sh>
-Date: Sat, 18 Jul 2026 13:49:12 -0400
+Date: Mon, 20 Jul 2026 16:07:57 -0400
 Subject: [PATCH] Cache dependencies in CI
 
 - npm cache via setup-node (keyed on package-lock.json)
-- Go module + build cache via setup-go (keyed on go.sum)
 - Playwright browser binaries via actions/cache, skipping the download
   entirely on a hit
 
-On Blacksmith runners these standard actions are transparently redirected
-to a cache colocated with the runner, so restores run at local-disk speed
-with no further changes.
+Go already uses setup-go's built-in module/build cache; on Blacksmith
+runners these standard caches are transparently redirected to a cache
+colocated with the runner, so restores run at local-disk speed with no
+further changes.
 ---
- template/.github/workflows/ci.yml   |  6 ++++--
- template/.github/workflows/test.yml | 18 ++++++++++++++++--
- 2 files changed, 20 insertions(+), 4 deletions(-)
+ template/.github/workflows/ci.yml   |  2 ++
+ template/.github/workflows/test.yml | 16 +++++++++++++++-
+ 2 files changed, 17 insertions(+), 1 deletion(-)
 
 diff --git a/template/.github/workflows/ci.yml b/template/.github/workflows/ci.yml
-index 705234e..f08ef2a 100644
+index 71cb5b1..4a98b9e 100644
 --- a/template/.github/workflows/ci.yml
 +++ b/template/.github/workflows/ci.yml
 @@ -28,6 +28,8 @@ jobs:
@@ -29,37 +29,10 @@ index 705234e..f08ef2a 100644
  
        - name: Install dependencies
          run: npm ci
-@@ -53,7 +55,7 @@ jobs:
-       - uses: actions/setup-go@v5
-         with:
-           go-version-file: backend/go.mod
--          cache: false
-+          cache-dependency-path: backend/go.sum
- 
-       - name: Build
-         run: go build ./...
-@@ -80,7 +82,7 @@ jobs:
-       - uses: actions/setup-go@v5
-         with:
-           go-version-file: backend/go.mod
--          cache: false
-+          cache-dependency-path: backend/go.sum
- 
-       - name: Unit tests
-         run: go test -count=1 ./...
 diff --git a/template/.github/workflows/test.yml b/template/.github/workflows/test.yml
-index 38f3c6a..1d7f20f 100644
+index 04182ef..823ead1 100644
 --- a/template/.github/workflows/test.yml
 +++ b/template/.github/workflows/test.yml
-@@ -36,7 +36,7 @@ jobs:
-       - uses: actions/setup-go@v5
-         with:
-           go-version-file: backend/go.mod
--          cache: false
-+          cache-dependency-path: backend/go.sum
- 
-       - name: Integration tests
-         env:
 @@ -55,12 +55,26 @@ jobs:
        - uses: actions/setup-node@v4
          with:
