@@ -1,60 +1,51 @@
-name: "SE: Teardown old demo repos"
+name: "SE: Decommission demo pool"
 
-# Archives (default) or deletes demo repos older than a cutoff. Demo repos
-# are discovered by the blacksmith-se-demo-generated topic that provision.yml applies.
+# Deletes the entire pooled demo fleet — the rare "tear the whole thing down"
+# button. Pool repos are discovered by the blacksmith-se-demo-pool topic that
+# reset.yml applies. Under the pool model repos are reused, not accumulated, so
+# there is no routine age-based cleanup; this only exists to remove the pool
+# wholesale (e.g. retiring the demo setup).
+#
 # Requires org secret DEMO_PROVISION_TOKEN (repo + delete_repo scopes).
 
 on:
   workflow_dispatch:
     inputs:
-      older_than_days:
-        description: "Only touch repos created more than this many days ago"
-        default: "7"
-      action:
-        description: "What to do with matching repos"
-        type: choice
-        options: [archive, delete]
-        default: archive
       dry_run:
-        description: "List matching repos without touching them"
+        description: "List matching repos without deleting them"
         type: boolean
         default: true
 
 env:
   TARGET_ORG: jacob-buckles-org
+  POOL_TOPIC: blacksmith-se-demo-pool
   GH_TOKEN: ${{ secrets.DEMO_PROVISION_TOKEN }}
 
 jobs:
-  teardown:
-    name: Teardown (${{ inputs.action }}, >${{ inputs.older_than_days }}d)
+  decommission:
+    name: Decommission pool${{ inputs.dry_run && ' (dry run)' || '' }}
     runs-on: ubuntu-latest
     steps:
-      - name: Find and process old demo repos
+      - name: Find and delete pool repos
         run: |
-          CUTOFF=$(date -u -d "${{ inputs.older_than_days }} days ago" +%Y-%m-%dT%H:%M:%SZ)
-          echo "Cutoff: repos created before $CUTOFF"
-
-          MATCHES=$(gh repo list "$TARGET_ORG" --topic blacksmith-se-demo-generated --limit 200 \
-            --json nameWithOwner,createdAt,isArchived \
-            --jq ".[] | select(.createdAt < \"$CUTOFF\") | select(.isArchived | not) | .nameWithOwner")
+          set -euo pipefail
+          MATCHES=$(gh repo list "$TARGET_ORG" --topic "$POOL_TOPIC" --limit 200 \
+            --json nameWithOwner --jq '.[].nameWithOwner')
 
           if [ -z "$MATCHES" ]; then
-            echo "No demo repos older than ${{ inputs.older_than_days }} days."
+            echo "No repos with topic $POOL_TOPIC in $TARGET_ORG."
             exit 0
           fi
 
+          echo "Pool repos:"
           echo "$MATCHES"
+
           if [ "${{ inputs.dry_run }}" = "true" ]; then
-            echo "Dry run — nothing touched."
+            echo "Dry run — nothing deleted."
             exit 0
           fi
 
           for REPO in $MATCHES; do
-            if [ "${{ inputs.action }}" = "delete" ]; then
-              gh repo delete "$REPO" --yes
-              echo "deleted $REPO"
-            else
-              gh repo archive "$REPO" --yes
-              echo "archived $REPO"
-            fi
+            gh repo delete "$REPO" --yes
+            echo "deleted $REPO"
           done

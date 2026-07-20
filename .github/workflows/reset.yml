@@ -1,0 +1,164 @@
+name: "SE: Reset demo repo"
+
+# Resets a pooled demo repo to its pre-demo state (creating it on first use).
+# The base repo keeps a fixed pool of long-lived demo repos instead of a new
+# repo per demo, so the Blacksmith dashboard stays bounded to a few entries.
+#
+# Pool (topic: blacksmith-se-demo-pool):
+#   primary  -> se-demo-app            (shown in most demos)
+#   backup-2 -> se-demo-app-backup-2
+#   backup-3 -> se-demo-app-backup-3
+#
+# Each reset rebuilds the repo from the base repo's CURRENT template/ and
+# features/, so demo-flow changes propagate automatically on the next reset:
+#   1. main = template/ contents as a fresh "Initial commit" (force-pushed).
+#   2. Last demo's feature/* branches are deleted (closing their draft PRs),
+#      then recreated from features/NN-<name>.patch (+ draft PRs).
+#   3. A burst of spaced trivial pushes seeds baseline CI history on
+#      GitHub-hosted runners (the "before" side of the story).
+#
+# The Blacksmith GitHub App stays installed on pool repos across resets, so
+# demos start at the migration wizard (not app-install). Reset does NOT touch
+# GitHub Actions run history; Blacksmith-side history can't be removed anyway.
+#
+# Requires org secret DEMO_PROVISION_TOKEN: a PAT with repo, workflow, and
+# delete_repo scopes on the target org. Install the Blacksmith GitHub App on
+# the pool repos once (or rely on an org-wide install).
+#
+# Baseline seeding takes real wall-clock time — reset the day before the call.
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Which pool repo to reset"
+        type: choice
+        options: [primary, backup-2, backup-3, all]
+        default: primary
+      baseline_pushes:
+        description: "Trivial pushes to seed CI history (0 skips seeding)"
+        default: "4"
+      push_spacing_seconds:
+        description: "Seconds between baseline pushes"
+        default: "90"
+      open_draft_prs:
+        description: "Open draft PRs for feature branches"
+        type: boolean
+        default: false
+
+env:
+  TARGET_ORG: jacob-buckles-org
+  POOL_TOPIC: blacksmith-se-demo-pool
+  GH_TOKEN: ${{ secrets.DEMO_PROVISION_TOKEN }}
+
+jobs:
+  reset:
+    name: Reset ${{ inputs.target }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.DEMO_PROVISION_TOKEN }}
+
+      - name: Reset target repo(s)
+        run: |
+          set -euo pipefail
+          git config user.name "Usage Analytics"
+          git config user.email "eng@usage-analytics.example"
+
+          case "${{ inputs.target }}" in
+            primary)  REPOS="se-demo-app" ;;
+            backup-2) REPOS="se-demo-app-backup-2" ;;
+            backup-3) REPOS="se-demo-app-backup-3" ;;
+            all)      REPOS="se-demo-app se-demo-app-backup-2 se-demo-app-backup-3" ;;
+            *) echo "::error::unknown target '${{ inputs.target }}'"; exit 1 ;;
+          esac
+
+          # Build a pristine "Initial commit" from the current template/ once;
+          # every target repo's main is reset to this exact commit.
+          git checkout -q --orphan demo-main origin/main --
+          git rm -rqf . >/dev/null
+          git checkout origin/main -- template
+          shopt -s dotglob
+          mv template/* .
+          rmdir template
+          git add -A
+          git commit -q -m "Initial commit"
+          DEMO_MAIN=$(git rev-parse demo-main)
+
+          COUNT="${{ inputs.baseline_pushes }}"
+          SPACING="${{ inputs.push_spacing_seconds }}"
+          MESSAGES=(
+            "docs: update changelog"
+            "chore: refresh sample telemetry notes"
+            "docs: clarify local development steps"
+            "chore: tidy changelog formatting"
+          )
+
+          for NAME in $REPOS; do
+            REPO="${TARGET_ORG}/${NAME}"
+            echo "::group::Reset ${REPO}"
+
+            # 1. Ensure the repo exists (create + tag on first use).
+            if ! gh repo view "$REPO" >/dev/null 2>&1; then
+              gh repo create "$REPO" --private \
+                --description "Usage Analytics — service metrics dashboard"
+              gh repo edit "$REPO" --add-topic "$POOL_TOPIC"
+              echo "created $REPO"
+            fi
+
+            git remote remove demo 2>/dev/null || true
+            git remote add demo "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git"
+
+            # 2. Reset main to the pristine initial commit.
+            git push -f -q demo "${DEMO_MAIN}:refs/heads/main"
+
+            # 3. Delete last demo's feature branches (closes their draft PRs).
+            for REF in $(git ls-remote --heads demo 'refs/heads/feature/*' | awk '{print $2}'); do
+              git push -q demo --delete "$REF" || true
+            done
+
+            # 4. Recreate feature branches from the patches (+ draft PRs).
+            #    -p2 drops "a/" and "template/" so patches apply at repo root.
+            for PATCH in $(git ls-tree --name-only origin/main features/ | sort); do
+              BR="feature/$(basename "$PATCH" .patch | sed 's/^[0-9]*-//')"
+              git checkout -q -B "$BR" "$DEMO_MAIN"
+              git show "origin/main:$PATCH" | git am -q -p2
+              git push -f -q demo "$BR"
+              if [ "${{ inputs.open_draft_prs }}" = "true" ]; then
+                gh pr create --repo "$REPO" --draft --head "$BR" --base main \
+                  --title "$(git log -1 --format=%s)" --body "$(git log -1 --format=%b)"
+              fi
+              echo "recreated $BR"
+            done
+
+            # 5. Seed baseline CI history (skipped when COUNT=0).
+            if [ "$COUNT" -gt 0 ]; then
+              git checkout -q -B baseline "$DEMO_MAIN"
+              : > CHANGELOG.md
+              for i in $(seq 1 "$COUNT"); do
+                echo "- $(date -u +%Y-%m-%dT%H:%M:%SZ) maintenance entry $i" >> CHANGELOG.md
+                git add CHANGELOG.md
+                git commit -q -m "${MESSAGES[$(( (i - 1) % ${#MESSAGES[@]} ))]}"
+                git push -q demo baseline:main
+                echo "baseline push $i/$COUNT to $REPO"
+                [ "$i" -lt "$COUNT" ] && sleep "$SPACING" || true
+              done
+            fi
+
+            {
+              echo "### ${NAME}"
+              echo "https://github.com/${REPO}"
+              if [ "${{ inputs.open_draft_prs }}" = "true" ]; then
+                echo
+                gh pr list --repo "$REPO" --draft --json number,title,url \
+                  --template '{{range .}}- [#{{.number}}] {{.title}} — {{.url}}{{"\n"}}{{end}}'
+              fi
+              echo
+            } >> "$GITHUB_STEP_SUMMARY"
+
+            echo "::endgroup::"
+          done
+
+          echo "Baseline runs (if seeded) are executing on GitHub-hosted runners; check the Actions tab in ~30 min." >> "$GITHUB_STEP_SUMMARY"

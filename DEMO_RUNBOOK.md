@@ -6,35 +6,51 @@ this repo is internal.
 
 ## What this repo is
 
-A provisioning factory: `template/` holds the demo-customer app (Node/TS
+A reset factory: `template/` holds the demo-customer app (Node/TS
 dashboard + Go API + Postgres, branded in-character as "Usage Analytics"
 so prospects browsing the demo repo see a realistic codebase) with
-deliberately slow "before" CI. `provision.yml` stamps out one fresh demo
-repo per demo from that directory. Blacksmith features live as patch
-files in `features/` that become branches + draft PRs in each demo repo
-— you choose features at demo time by which PRs you open, not at
-provision time.
+deliberately slow "before" CI. Instead of a new repo per demo, the base
+repo maintains a **fixed pool of 3 long-lived repos** and `reset.yml`
+restores one to its "before" state before each call. Blacksmith features
+live as patch files in `features/` that become branches + draft PRs in
+the demo repo — you choose features at demo time by which PRs you open.
 
-## Provisioning a demo repo
+Why a pool, not fresh repos: Blacksmith has no way to remove a repo's
+runs from the dashboard (even after the GitHub repo is deleted), so
+per-demo repos pile up dead entries and filter rows forever. Three reused
+repos keep the dashboard bounded.
 
-**Provision the day before the call** — baseline seeding takes real
-wall-clock time on GitHub's queue. Or keep 2–3 pre-seeded repos warm.
+The pool (topic `blacksmith-se-demo-pool`):
+- `se-demo-app` — **primary**, shown in most demos
+- `se-demo-app-backup-2`, `se-demo-app-backup-3` — standbys (parallel or
+  back-to-back demos)
 
-1. One-time setup: org secret `DEMO_PROVISION_TOKEN` — a PAT with
-   `repo`, `workflow`, and `delete_repo` scopes on `jacob-buckles-org`.
-2. Actions → **SE: Provision demo repo** → Run workflow. Inputs:
-   - `customer_name` — becomes `se-demo-<slug>`
-   - `baseline_pushes` (default 4) — each triggers CI + Integration +
-     Docker, so 4 pushes ≈ 12 baseline runs for the before/after chart
+## Reset a demo repo
+
+**Reset the day before the call** — baseline seeding takes real
+wall-clock time on GitHub's queue.
+
+1. One-time setup: org secret `DEMO_PROVISION_TOKEN` (PAT with `repo`,
+   `workflow`, `delete_repo` on `jacob-buckles-org`); run reset once per
+   pool repo to create them; install the Blacksmith GitHub App on the 3
+   repos (stays installed across resets).
+2. Actions → **SE: Reset demo repo** → Run workflow. Inputs:
+   - `target` — `primary` (usual), `backup-2`, `backup-3`, or `all`
+   - `baseline_pushes` (default 4; `0` skips seeding) — each triggers CI +
+     Integration + Docker, so 4 pushes ≈ 12 baseline runs
    - `push_spacing_seconds` (default 90) — spreads runs so history looks
      organic
-3. The job summary links the new repo and its draft PRs.
-4. Afterwards: install the Blacksmith GitHub App on the demo repo (or
-   confirm org-wide install covers it). Don't run the migration wizard
-   until the call — that's the show.
+   - `open_draft_prs` (default false) — open the feature draft PRs, or
+     leave the branches unopened and generate PRs live
+3. The job summary links the repo and any draft PRs.
+4. The app is already installed, so **don't** demo app-install — start at
+   the migration wizard on the call. That's the show.
 
-Cleanup: **SE: Teardown old demo repos** (dry-run by default) archives or
-deletes repos with the `blacksmith-se-demo-generated` topic older than N days.
+End of day / between customers: reset again (use `baseline_pushes: 0` for
+a quick clean-slate), or reset `all` to wipe every pool repo.
+
+Full teardown (rare): **SE: Decommission demo pool** (dry-run by default)
+deletes every repo with the `blacksmith-se-demo-pool` topic.
 
 ## The "before" state (what the customer sees)
 
@@ -65,14 +81,19 @@ genuinely shrink it (which is the point). 120 ≈ 4-min CI wall; 200 ≈
    the matrix burning triple minutes, browser downloads on every E2E
    run, docker rebuilding from scratch. Open a Dockerfile if they're
    docker-heavy.
-2. **Onboarding (5 min).** Install the Blacksmith GitHub App on the
-   repo, run the **migration wizard** live, merge its `runs-on` PR.
-   "One line per job." *(Fallback: draft PR "Migrate CI to Blacksmith
-   runners".)*
-3. **The speedup (5 min).** Push a trivial commit (or re-run a
-   workflow). Compare wall-clock side by side, then open the Blacksmith
-   dashboard: per-job timings against the seeded GitHub-hosted baseline,
-   cost view.
+2. **Onboarding (5 min).** The Blacksmith GitHub App is already installed
+   on the pool repo, so start at the **migration wizard**: run it live and
+   merge its `runs-on` PR. "One line per job." *(Fallback: draft PR
+   "Migrate CI to Blacksmith runners".)* (If a prospect specifically wants
+   to see the app-install step, that's the one beat the pool model can't
+   show fresh — mention it verbally or use a throwaway repo.)
+3. **The speedup (5 min).** Push a trivial commit (or re-run a workflow).
+   The "before" is the aged GitHub-hosted baseline runs in the Actions tab
+   (slow wall-clock); the "after" is the new Blacksmith run — compare
+   wall-clock side by side, then open the Blacksmith dashboard for per-job
+   timings and cost. **Date-filter the dashboard to today** — a reused
+   pool repo carries prior demos' Blacksmith runs in its history (they
+   can't be deleted), so filtering keeps the after view clean.
 4. **Codesmith rightsizing (3 min).** The migration PR deliberately
    oversizes the frontend matrix (8 vCPU for lint/unit) and undersizes
    E2E (2 vCPU). Apply Codesmith's recommendation live.
@@ -84,9 +105,10 @@ genuinely shrink it (which is the point). 120 ≈ 4-min CI wall; 200 ≈
 
 ## Feature PR toolkit
 
-Every demo repo gets these draft PRs, in this order (PR #1–#6), created
-from the patches in `features/`. Preferred path: generate live with the
-wizard/Codesmith; the PR is the zero-dead-air fallback.
+After a reset the demo repo has these six feature branches, in this order,
+built from the patches in `features/` (opened as draft PRs #1–#6 when you
+run reset with `open_draft_prs: true`). Preferred path: generate live with
+the wizard/Codesmith; the pre-built PR is the zero-dead-air fallback.
 
 | PR | Patch | What it shows | Notes |
 | --- | --- | --- | --- |

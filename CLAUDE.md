@@ -9,24 +9,43 @@ GitHub repo: https://github.com/jacob-buckles-org/blacksmith-se-demo-base
 ## Shape of the repo
 
 - **Root** = SE-facing only: README, runbook, this file, and the
-  provision/teardown/validate workflows. Never reaches customers.
-- **`template/`** = the entire demo repo that provisioning copies out:
-  the demo-customer app ("Usage Analytics": React/TS dashboard, Go API,
+  reset/decommission/validate workflows. Never reaches customers.
+- **`template/`** = the entire demo repo that reset copies out: the
+  demo-customer app ("Usage Analytics": React/TS dashboard, Go API,
   Postgres) plus its deliberately slow, cache-free workflows in
   `template/.github/workflows/`. Everything inside template/ is
   customer-visible — keep it in-character; refer to the customer
   generically ("the demo app") in root-level docs.
 - **`features/NN-<name>.patch`** = one Blacksmith feature each: a single
   `git format-patch` commit touching only `template/` paths. The base
-  repo has NO feature branches — main is the only branch. provision.yml
+  repo has NO feature branches — main is the only branch. reset.yml
   applies each patch inside the demo repo (with `git am -p2` to strip
-  the template/ prefix) as branch `feature/<name>` plus a draft PR;
-  commit subject → PR title, body → PR body, both customer-visible.
+  the template/ prefix) as branch `feature/<name>` plus an optional draft
+  PR; commit subject → PR title, body → PR body, both customer-visible.
   The NN prefix sets PR creation order.
 - To edit a feature: `git am` the patch on a temp branch, amend, and
   `git format-patch -1 --stdout` back over the file (recipe in
   README.md). validate-template CI fails if any patch stops applying
   to current main.
+
+## Demo-repo model (pool + reset)
+
+- Demos run on a **fixed pool of 3 long-lived repos**, not a new repo per
+  demo: `se-demo-app` (primary) + `se-demo-app-backup-2`/`-backup-3`,
+  tagged `blacksmith-se-demo-pool`. Reuse keeps the Blacksmith dashboard
+  bounded (Blacksmith can't delete a repo's runs, so per-demo repos would
+  pile up dead entries forever).
+- `reset.yml` (`target`: primary/backup-2/backup-3/all) rebuilds a pool
+  repo from the CURRENT `template/` + `features/`: force-pushes `main` to
+  a fresh "Initial commit", deletes last demo's `feature/*` branches
+  (closing their draft PRs), recreates them from the patches, and seeds
+  baseline CI history (`baseline_pushes=0` skips seeding). It creates the
+  repo on first use. So the base repo stays the single source of truth and
+  pool repos are disposable projections — edits here propagate on next
+  reset.
+- The Blacksmith GitHub App stays installed on pool repos, so the live
+  "install the app" onboarding beat is intentionally skipped; demos start
+  at the migration wizard. Reset does not scrub run history.
 
 ## Invariants to preserve
 
@@ -42,5 +61,5 @@ GitHub repo: https://github.com/jacob-buckles-org/blacksmith-se-demo-base
   dependency-caching branch deliberately uses standard `actions/cache` /
   `setup-node`/`setup-go`, which Blacksmith accelerates transparently.
   Don't "fix" it to use Blacksmith forks.
-- Demo repos are tagged with the `blacksmith-se-demo-generated` topic (teardown
-  discovers them by it).
+- Pool repos are tagged with the `blacksmith-se-demo-pool` topic (reset
+  applies it on create; decommission discovers them by it).
