@@ -51,6 +51,7 @@ features/*.patch     ───────────────────�
 | Workflow | What it does |
 | --- | --- |
 | `SE: Reset demo repo` | Resets a pool repo (`primary` / `backup-2` / `backup-3` / `all`) to the current template: force-pushes `main`, recreates feature branches (+ optional draft PRs), seeds baseline CI history. Creates the repo on first use. |
+| `SE: Generate CI activity` | Pushes N trivial commits to a pool repo's `main` (`primary` / `backup-2` / `backup-3` / `all`) to trigger its workflows on demand — quick CI activity / warmup runs without hand-committing. Does not reset. |
 | `SE: Decommission demo pool` | Deletes every repo tagged `blacksmith-se-demo-pool` (dry-run by default) — the rare full teardown |
 | `Validate template` | Base-repo CI: fast correctness checks on `template/` changes |
 

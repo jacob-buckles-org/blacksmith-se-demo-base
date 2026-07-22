@@ -9,7 +9,8 @@ GitHub repo: https://github.com/jacob-buckles-org/blacksmith-se-demo-base
 ## Shape of the repo
 
 - **Root** = SE-facing only: README, runbook, this file, and the
-  reset/decommission/validate workflows. Never reaches customers.
+  reset / generate-activity / decommission / validate workflows. Never
+  reaches customers.
 - **`template/`** = the entire demo repo that reset copies out: the
   demo-customer app ("Usage Analytics": React/TS dashboard, Go API,
   Postgres) plus its deliberately slow, cache-free workflows in

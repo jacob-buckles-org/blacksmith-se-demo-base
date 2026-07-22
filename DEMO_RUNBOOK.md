@@ -46,6 +46,12 @@ wall-clock time on GitHub's queue.
 4. The app is already installed, so **don't** demo app-install — start at
    the migration wizard on the call. That's the show.
 
+Need more CI activity on demand (extra before/after history, warmup runs
+for metrics/rightsizing, or just "show something happening" during prep)?
+Run **SE: Generate CI activity** → pick a `target` and a `count`. It pushes
+N trivial commits to that repo's `main` (each triggers ci/test/docker), no
+reset required. Works whatever state the repo is in.
+
 End of day / between customers: reset again (use `baseline_pushes: 0` for
 a quick clean-slate), or reset `all` to wipe every pool repo.
 
