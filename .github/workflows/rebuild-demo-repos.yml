@@ -15,7 +15,10 @@ name: "SE: Rebuild demo repos"
 # migration-wizard PR branch on se-demo-app-unmigrated — untouched.
 #
 # Run this only when you deliberately change app/ or a workflow file, not
-# per-demo. Creates the target repo(s) on first use.
+# per-demo. Creates the target repo(s) as PUBLIC on first use — public
+# repos get unlimited free Actions minutes, which matters if the org's
+# billing/spending limit is ever blocking private-repo runs. Fine here
+# since both repos hold only a synthetic demo app.
 #
 # Requires org secret DEMO_PROVISION_TOKEN: a PAT with repo + workflow
 # scopes on the target org.
@@ -67,7 +70,10 @@ jobs:
             echo "::group::Rebuild ${REPO}"
 
             if ! gh repo view "$REPO" >/dev/null 2>&1; then
-              gh repo create "$REPO" --private --description "$DESC"
+              # Public, not private: public repos get unlimited free Actions
+              # minutes, sidestepping the org's billing/spending-limit gate.
+              # Fine for a synthetic demo app with no real customer data.
+              gh repo create "$REPO" --public --description "$DESC"
               echo "created $REPO"
             fi
 
