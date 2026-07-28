@@ -3,6 +3,9 @@ import { defineConfig, devices } from '@playwright/test'
 export default defineConfig({
   testDir: './e2e',
   fullyParallel: true,
+  // Run all 3 browser projects at once in CI so the matrix doesn't serialize
+  // behind whatever CPU count Playwright autodetects on the runner.
+  workers: process.env.CI ? 3 : undefined,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list',

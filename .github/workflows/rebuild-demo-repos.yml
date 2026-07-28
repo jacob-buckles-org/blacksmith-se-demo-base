@@ -1,0 +1,105 @@
+name: "SE: Rebuild demo repos"
+
+# Redistributes this repo's CURRENT app/ + workflows/{current,unmigrated}
+# to the two permanent demo repos:
+#
+#   app/ + workflows/current/    -> se-demo-app             (migrated)
+#   app/ + workflows/unmigrated/ -> se-demo-app-unmigrated   (before state)
+#
+# Both repos are steady state — nothing resets them, nothing force-pushes.
+# Each run clones the target's current main, replaces its tracked content
+# with app/ (at repo root) + the matching workflows/ set (under
+# .github/workflows/), and pushes a single normal commit. That preserves
+# each repo's Actions run history (Codesmith and test analytics both need
+# accumulated history) and leaves any other branch — notably the standing
+# migration-wizard PR branch on se-demo-app-unmigrated — untouched.
+#
+# Run this only when you deliberately change app/ or a workflow file, not
+# per-demo. Creates the target repo(s) on first use.
+#
+# Requires org secret DEMO_PROVISION_TOKEN: a PAT with repo + workflow
+# scopes on the target org.
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Which repo(s) to rebuild"
+        type: choice
+        options: [current, unmigrated, both]
+        default: both
+
+env:
+  TARGET_ORG: jacob-buckles-org
+  GH_TOKEN: ${{ secrets.DEMO_PROVISION_TOKEN }}
+
+jobs:
+  rebuild:
+    name: Rebuild ${{ inputs.target }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Rebuild target repo(s)
+        run: |
+          set -euo pipefail
+          git config --global user.name "Usage Analytics"
+          git config --global user.email "eng@usage-analytics.example"
+
+          case "${{ inputs.target }}" in
+            current)    KEYS="current" ;;
+            unmigrated) KEYS="unmigrated" ;;
+            both)       KEYS="current unmigrated" ;;
+            *) echo "::error::unknown target '${{ inputs.target }}'"; exit 1 ;;
+          esac
+
+          BASE="$GITHUB_WORKSPACE"
+
+          for KEY in $KEYS; do
+            if [ "$KEY" = "current" ]; then
+              NAME="se-demo-app"
+              DESC="Usage Analytics — service metrics dashboard (migrated to Blacksmith)"
+            else
+              NAME="se-demo-app-unmigrated"
+              DESC="Usage Analytics — service metrics dashboard"
+            fi
+            REPO="${TARGET_ORG}/${NAME}"
+            echo "::group::Rebuild ${REPO}"
+
+            if ! gh repo view "$REPO" >/dev/null 2>&1; then
+              gh repo create "$REPO" --private --description "$DESC"
+              echo "created $REPO"
+            fi
+
+            rm -rf work && mkdir work
+            git clone -q "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git" work
+            cd work
+
+            if git rev-parse --verify -q main >/dev/null; then
+              git checkout -q main
+            else
+              git checkout -q --orphan main
+            fi
+
+            # Replace tracked content with the current app/ + workflows/<KEY>,
+            # keeping .git and any untracked build output out of the diff.
+            git ls-files -z | xargs -0 -r rm -f
+            find . -mindepth 1 -maxdepth 1 ! -name .git -type d -empty -delete
+
+            cp -R "$BASE/app/." .
+            mkdir -p .github/workflows
+            cp "$BASE"/workflows/"$KEY"/*.yml .github/workflows/
+
+            git add -A
+            if git diff --cached --quiet; then
+              echo "no changes for $REPO"
+            else
+              git commit -q -m "Sync from blacksmith-se-demo-base ($KEY)"
+              git push -q origin HEAD:main
+              echo "pushed update to $REPO"
+            fi
+
+            cd ..
+            echo "::endgroup::"
+            echo "- [${NAME}](https://github.com/${REPO})" >> "$GITHUB_STEP_SUMMARY"
+          done

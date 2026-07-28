@@ -1,8 +1,9 @@
-name: Validate template
+name: Validate
 
-# Base-repo CI: fast correctness checks so template/ changes can't break
-# demos. Deliberately quick (minimal workload, one Node version, one
-# browser) — the slow "before" experience belongs to demo repos, not here.
+# Base-repo CI: fast correctness checks so app/ and workflows/ changes
+# can't break the demo repos before the next "SE: Rebuild demo repos" run.
+# Deliberately quick (minimal workload, one Node version, one browser) —
+# the slow "before" experience belongs to se-demo-app-unmigrated, not here.
 
 on:
   push:
@@ -19,7 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: template/frontend
+        working-directory: app/frontend
     steps:
       - uses: actions/checkout@v4
 
@@ -27,7 +28,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: template/frontend/package-lock.json
+          cache-dependency-path: app/frontend/package-lock.json
 
       - name: Install dependencies
         run: npm ci
@@ -69,14 +70,14 @@ jobs:
           --health-retries 15
     defaults:
       run:
-        working-directory: template/backend
+        working-directory: app/backend
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-go@v5
         with:
-          go-version-file: template/backend/go.mod
-          cache-dependency-path: template/backend/go.sum
+          go-version-file: app/backend/go.mod
+          cache-dependency-path: app/backend/go.sum
 
       - name: Build and vet
         run: |
@@ -98,36 +99,13 @@ jobs:
         run: go test -count=1 -tags integration ./internal/store/
 
   workflows-lint:
-    name: Template workflow sanity
+    name: Workflow overlays sanity
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Template workflows parse as YAML
+      - name: workflows/current and workflows/unmigrated parse as YAML
         run: |
-          for f in template/.github/workflows/*.yml; do
+          for f in workflows/current/*.yml workflows/unmigrated/*.yml; do
             python3 -c "import yaml,sys; yaml.safe_load(open(sys.argv[1]))" "$f" && echo "ok: $f"
           done
-
-  feature-patches:
-    name: Feature patches apply cleanly
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Apply every feature patch to current main
-        run: |
-          git config user.name "patch-check"
-          git config user.email "patch-check@invalid"
-          FAILED=0
-          for PATCH in features/*.patch; do
-            git checkout -q -B patch-check "${GITHUB_SHA}"
-            if git am -q "$PATCH"; then
-              echo "ok: $PATCH"
-            else
-              git am --abort
-              echo "::error file=$PATCH::$PATCH no longer applies to template/ — regenerate it (see README)"
-              FAILED=1
-            fi
-          done
-          exit $FAILED

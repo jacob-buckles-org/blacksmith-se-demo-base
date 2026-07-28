@@ -1,14 +1,10 @@
 name: "SE: Generate CI activity"
 
-# Pushes N trivial commits to a pooled demo repo's main to trigger its
-# workflows on demand — a quick way to make CI activity (fresh runs, extra
-# before/after history, warmup runs for metrics/rightsizing) without
-# hand-committing in the repo.
-#
-# This does NOT reset the repo (use "SE: Reset demo repo" for that) — it just
-# adds commits on top of the target's current main, so it works whatever
-# state the repo is in (before / migrated / etc.). Each push triggers every
-# push-triggered workflow in the target repo (ci, test, docker).
+# "Goose it now" button: re-triggers the ci/test/docker workflows in a
+# target demo repo on demand, on top of whatever the repo's schedule:
+# triggers are already doing. No commits — just workflow_dispatch runs
+# against the target repo's current main, so it works regardless of
+# state and never touches the standing migration-wizard PR branch.
 #
 # Requires org secret DEMO_PROVISION_TOKEN (repo + workflow scopes).
 
@@ -16,16 +12,13 @@ on:
   workflow_dispatch:
     inputs:
       target:
-        description: "Which pool repo to push to"
+        description: "Which repo to goose"
         type: choice
-        options: [primary, backup-2, backup-3, all]
-        default: primary
+        options: [current, unmigrated, both]
+        default: both
       count:
-        description: "Number of commits/pushes per repo (each triggers the repo's workflows)"
-        default: "5"
-      spacing_seconds:
-        description: "Seconds between pushes (0 = burst)"
-        default: "15"
+        description: "Times to trigger each workflow"
+        default: "1"
 
 env:
   TARGET_ORG: jacob-buckles-org
@@ -36,53 +29,33 @@ jobs:
     name: Activity → ${{ inputs.target }} (×${{ inputs.count }})
     runs-on: ubuntu-latest
     steps:
-      - name: Push activity commits
+      - name: Trigger workflow runs
         run: |
           set -euo pipefail
-          git config --global user.name "Usage Analytics"
-          git config --global user.email "eng@usage-analytics.example"
 
           case "${{ inputs.target }}" in
-            primary)  REPOS="se-demo-app" ;;
-            backup-2) REPOS="se-demo-app-backup-2" ;;
-            backup-3) REPOS="se-demo-app-backup-3" ;;
-            all)      REPOS="se-demo-app se-demo-app-backup-2 se-demo-app-backup-3" ;;
+            current)    NAMES="se-demo-app" ;;
+            unmigrated) NAMES="se-demo-app-unmigrated" ;;
+            both)       NAMES="se-demo-app se-demo-app-unmigrated" ;;
             *) echo "::error::unknown target '${{ inputs.target }}'"; exit 1 ;;
           esac
 
           COUNT="${{ inputs.count }}"
-          SPACING="${{ inputs.spacing_seconds }}"
-          MESSAGES=(
-            "docs: update changelog"
-            "chore: refresh sample telemetry notes"
-            "docs: clarify local development steps"
-            "chore: tidy changelog formatting"
-          )
 
-          for NAME in $REPOS; do
+          for NAME in $NAMES; do
             REPO="${TARGET_ORG}/${NAME}"
             if ! gh repo view "$REPO" >/dev/null 2>&1; then
-              echo "::warning::$REPO does not exist; skipping (run 'SE: Reset demo repo' to create it)"
+              echo "::warning::$REPO does not exist; skipping (run 'SE: Rebuild demo repos' to create it)"
               continue
             fi
 
             echo "::group::Activity → ${REPO}"
-            rm -rf work
-            git clone --depth 1 "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git" work
-            cd work
-            touch CHANGELOG.md
-            for i in $(seq 1 "$COUNT"); do
-              echo "- $(date -u +%Y-%m-%dT%H:%M:%SZ) maintenance entry" >> CHANGELOG.md
-              git add CHANGELOG.md
-              git commit -q -m "${MESSAGES[$(( (i - 1) % ${#MESSAGES[@]} ))]}"
-              git push -q origin HEAD:main
-              echo "pushed $i/$COUNT to $REPO"
-              [ "$i" -lt "$COUNT" ] && sleep "$SPACING" || true
+            for WORKFLOW in ci.yml test.yml docker.yml; do
+              for i in $(seq 1 "$COUNT"); do
+                gh workflow run "$WORKFLOW" --repo "$REPO" --ref main
+                echo "triggered $WORKFLOW ($i/$COUNT) on $REPO"
+              done
             done
-            cd ..
             echo "::endgroup::"
-            echo "- ${COUNT} commits pushed to [${NAME}](https://github.com/${REPO}/actions)" >> "$GITHUB_STEP_SUMMARY"
+            echo "- ${COUNT}× ci/test/docker triggered on [${NAME}](https://github.com/${REPO}/actions)" >> "$GITHUB_STEP_SUMMARY"
           done
-
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "Runs are executing in the target repo(s)' Actions tabs." >> "$GITHUB_STEP_SUMMARY"

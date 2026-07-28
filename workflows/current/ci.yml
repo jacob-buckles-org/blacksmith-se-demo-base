@@ -5,16 +5,25 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+  schedule:
+    # Keeps recent runs in the Actions tab and keeps feeding Codesmith
+    # history between demos — no new commits, nothing to conflict with
+    # the standing migration PR on the unmigrated side.
+    - cron: "0 14 * * 1-5"
 
 env:
   # Scales the session-fingerprint verification sweep (SEC-114) and the
-  # retention-sweep row counts.
+  # retention-sweep row counts. Same value as the unmigrated side — the
+  # workload is identical; only the runner and caching differ.
   METRICS_WORKLOAD: "200"
 
 jobs:
+  # Deliberately oversized: lint/typecheck/unit tests for a small dashboard
+  # don't need 8 vCPU. Left this way on purpose so Codesmith has a standing
+  # rightsizing recommendation to apply live (see DEMO_RUNBOOK.md).
   frontend-checks:
     name: Frontend (Node ${{ matrix.node }})
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-8vcpu-ubuntu-2404
     strategy:
       fail-fast: false
       matrix:
@@ -23,11 +32,13 @@ jobs:
       run:
         working-directory: frontend
     steps:
-      - uses: actions/checkout@v4
+      - uses: useblacksmith/checkout@v1
 
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
 
       - name: Install dependencies
         run: npm ci
@@ -43,12 +54,12 @@ jobs:
 
   backend-build:
     name: Backend build
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     defaults:
       run:
         working-directory: backend
     steps:
-      - uses: actions/checkout@v4
+      - uses: useblacksmith/checkout@v1
 
       - uses: actions/setup-go@v5
         with:
@@ -70,12 +81,12 @@ jobs:
 
   backend-test:
     name: Backend unit tests
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     defaults:
       run:
         working-directory: backend
     steps:
-      - uses: actions/checkout@v4
+      - uses: useblacksmith/checkout@v1
 
       - uses: actions/setup-go@v5
         with:

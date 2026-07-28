@@ -9,58 +9,68 @@ GitHub repo: https://github.com/jacob-buckles-org/blacksmith-se-demo-base
 ## Shape of the repo
 
 - **Root** = SE-facing only: README, runbook, this file, and the
-  reset / generate-activity / decommission / validate workflows. Never
-  reaches customers.
-- **`template/`** = the entire demo repo that reset copies out: the
-  demo-customer app ("Usage Analytics": React/TS dashboard, Go API,
-  Postgres) plus its deliberately slow, cache-free workflows in
-  `template/.github/workflows/`. Everything inside template/ is
-  customer-visible — keep it in-character; refer to the customer
-  generically ("the demo app") in root-level docs.
-- **`features/NN-<name>.patch`** = one Blacksmith feature each: a single
-  `git format-patch` commit touching only `template/` paths. The base
-  repo has NO feature branches — main is the only branch. reset.yml
-  applies each patch inside the demo repo (with `git am -p2` to strip
-  the template/ prefix) as branch `feature/<name>` plus an optional draft
-  PR; commit subject → PR title, body → PR body, both customer-visible.
-  The NN prefix sets PR creation order.
-- To edit a feature: `git am` the patch on a temp branch, amend, and
-  `git format-patch -1 --stdout` back over the file (recipe in
-  README.md). validate-template CI fails if any patch stops applying
-  to current main.
+  rebuild / generate-activity / validate workflows. Never reaches
+  customers.
+- **`app/`** = the single shared source of truth for the demo app
+  ("Usage Analytics": React/TS dashboard, Go API, Postgres, sample data,
+  `docker-compose.yml`). No workflow files live here. Edited once, ever.
+  Everything inside it is customer-visible in both target repos.
+- **`workflows/current/`** = `ci.yml`/`test.yml`/`docker.yml` for
+  `se-demo-app`: Blacksmith runners, the canonical feature combo, paired
+  "cold" jobs, deliberately mis-sized jobs. Hand-maintained directly — no
+  patch/PR pipeline.
+- **`workflows/unmigrated/`** = the same three workflows for
+  `se-demo-app-unmigrated`: `ubuntu-latest`, with a reasonable existing
+  `actions/cache` + `type=gha` Docker cache setup (an honest baseline,
+  not a strawman).
 
-## Demo-repo model (pool + reset)
+## Demo-repo model (two permanent repos, never reset)
 
-- Demos run on a **fixed pool of 3 long-lived repos**, not a new repo per
-  demo: `se-demo-app` (primary) + `se-demo-app-backup-2`/`-backup-3`,
-  tagged `blacksmith-se-demo-pool`. Reuse keeps the Blacksmith dashboard
-  bounded (Blacksmith can't delete a repo's runs, so per-demo repos would
-  pile up dead entries forever).
-- `reset.yml` (`target`: primary/backup-2/backup-3/all) rebuilds a pool
-  repo from the CURRENT `template/` + `features/`: force-pushes `main` to
-  a fresh "Initial commit", deletes last demo's `feature/*` branches
-  (closing their draft PRs), recreates them from the patches, and seeds
-  baseline CI history (`baseline_pushes=0` skips seeding). It creates the
-  repo on first use. So the base repo stays the single source of truth and
-  pool repos are disposable projections — edits here propagate on next
-  reset.
-- The Blacksmith GitHub App stays installed on pool repos, so the live
-  "install the app" onboarding beat is intentionally skipped; demos start
-  at the migration wizard. Reset does not scrub run history.
+- **`se-demo-app`** and **`se-demo-app-unmigrated`** are permanent,
+  steady-state repos — not a pool, nothing resets. Each is always exactly
+  what a prospect should see when you open it.
+- **`SE: Rebuild demo repos`** (`target`: current/unmigrated/both)
+  redistributes the CURRENT `app/` + matching `workflows/` set to each
+  target's `main` as one normal commit — no force-push, no history wipe.
+  Creates the repo on first use. This preserves each repo's accumulated
+  Actions history (Codesmith and test analytics both need it) and leaves
+  other branches — notably the standing migration-wizard PR branch on
+  `se-demo-app-unmigrated` — untouched. Run it only when you deliberately
+  change `app/` or a workflow file, not per-demo.
+- Each workflow in both `workflows/` sets carries its own `schedule:`
+  trigger so both repos' Actions tabs show fresh runs between demos with
+  no new commits. `SE: Generate CI activity` is a manual top-up
+  (`workflow_dispatch` re-triggers, no commits) for right before a call.
+- The Blacksmith GitHub App is installed at the org level (covers both
+  repos at no extra cost — install is org-scoped, not per-repo), so the
+  live "install the app" beat is intentionally skipped; the migration
+  wizard was run once against `se-demo-app-unmigrated` and its generated
+  PR is left open, draft, unmerged as the standing onboarding artifact.
 
 ## Invariants to preserve
 
-- "Before" CI (in template/) must stay slow *authentically*: no sleeps.
-  The timing knob is `METRICS_WORKLOAD` (env in template ci.yml/test.yml)
-  driving CPU-bound test sweeps — real work that faster runners
-  genuinely speed up. Base-repo validation pins it to 1 for speed.
-- `template/backend/internal/events/` is generated: edit
-  `tools/genevents` in the backend and re-run `go run ./tools/genevents`
-  (validate-template CI diffs it).
-- `template/data/*.csv` are generated by `node data/generate.mjs`.
-- `useblacksmith/cache` and `useblacksmith/setup-*` are ARCHIVED — the
-  dependency-caching branch deliberately uses standard `actions/cache` /
-  `setup-node`/`setup-go`, which Blacksmith accelerates transparently.
-  Don't "fix" it to use Blacksmith forks.
-- Pool repos are tagged with the `blacksmith-se-demo-pool` topic (reset
-  applies it on create; decommission discovers them by it).
+- "Before" CI (`workflows/unmigrated/`) must stay slow *authentically*:
+  no sleeps. The timing knob is `METRICS_WORKLOAD` (env in
+  ci.yml/test.yml) driving CPU-bound test sweeps — real work that faster
+  runners genuinely speed up. Base-repo `Validate` pins it to 1 for speed.
+- `app/backend/internal/events/` is generated: edit `tools/genevents` in
+  the backend and re-run `go run ./tools/genevents` (`Validate` diffs it).
+- `app/data/*.csv` are generated by `node data/generate.mjs`.
+- `workflows/unmigrated/` deliberately uses standard `actions/cache` /
+  `setup-node`/`setup-go` / `docker/build-push-action` with `type=gha` —
+  a real, decent GHA setup, not "caching off." `workflows/current/` uses
+  the same standard `actions/cache`/`setup-*` calls (Blacksmith
+  accelerates them transparently) plus `useblacksmith/checkout` and
+  `useblacksmith/build-push-action` specifically. Don't blur this line in
+  either direction — the before/after credibility depends on it.
+- `se-demo-app`'s `frontend-checks` job (8 vCPU) and `e2e` job (2 vCPU)
+  are deliberately mis-sized on purpose — they feed a standing Codesmith
+  rightsizing recommendation and (the `e2e` job specifically, via 3
+  browser projects forced fully parallel in
+  `app/frontend/playwright.config.ts`) an intermittent OOM-caused flaky
+  test. Don't "fix" these without updating the demo arc in
+  `DEMO_RUNBOOK.md`.
+- `docker.yml` in `workflows/current/` pairs each Blacksmith-cached build
+  job with a `-gha-cache` sibling on the same runner class, isolating the
+  cache-backend delta from the hardware delta. Keep both jobs on the same
+  Blacksmith runner size when editing.
