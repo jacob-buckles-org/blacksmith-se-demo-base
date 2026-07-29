@@ -48,14 +48,7 @@ jobs:
           DATABASE_URL: postgres://metrics:metrics@localhost:5432/metrics
         run: go test -count=1 -tags integration ./internal/store/
 
-  # Deliberately undersized: 3 browser projects (chromium/firefox/webkit)
-  # run fully in parallel (see frontend/playwright.config.ts) on a runner
-  # sized for one. Under memory pressure this intermittently OOM-kills a
-  # browser process mid-test rather than failing deterministically — a
-  # real resource constraint, not a scripted flake. This is the same job
-  # Codesmith has a standing rightsizing recommendation for; see
-  # DEMO_RUNBOOK.md for the test-analytics + log-search + utilization +
-  # rightsizing arc this feeds.
+
   e2e:
     name: Dashboard E2E (Playwright)
     runs-on: blacksmith-2vcpu-ubuntu-2404

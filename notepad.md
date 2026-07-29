@@ -56,3 +56,18 @@ flags `backend-test`/`docker-build`/`backend-integration` for scale-up
 once real history accumulates there — the historical recs logged above
 already showed exactly that shape at this same 4 vCPU baseline.
 
+Found and fixed a real bug 2026-07-29: `workflows/current/docker.yml`'s
+`build-backend`/`build-frontend` jobs were missing
+`useblacksmith/setup-docker-builder@v1` (present in the original feature
+patch, dropped when this file got rewritten during the redesign) —
+confirmed live via a "Not using a Blacksmith builder ... Build metrics
+will not be reported" warning, meaning zero Blacksmith cache benefit was
+active in any se-demo-app Docker run before the fix. Fixed; the first
+post-fix run correctly showed a fresh sticky disk being created (`Getting
+sticky disk for jacob-buckles-org/se-demo-app` → `Successfully obtained
+sticky disk`), so this was a cold build as expected. Watch the *next*
+scheduled/triggered Docker run — it should reuse that sticky disk and
+show a real speedup (faster base-image layer restore, faster `go
+build`/`npm ci`). If it doesn't, the sticky-disk caching itself needs
+investigating, not just the builder wiring.
+

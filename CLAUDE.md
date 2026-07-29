@@ -83,18 +83,21 @@ GitHub repo: https://github.com/jacob-buckles-org/blacksmith-se-demo-base
   false` everywhere, no registry login) — this workflow demonstrates
   build/cache timing only, never a deployment pipeline. `workflows/current/`
   has just 2 jobs (`build-backend`/`build-frontend`, Blacksmith cache via
-  `useblacksmith/build-push-action`) — same job names as
-  `workflows/unmigrated/`'s, for direct comparison. There is deliberately
-  **no** paired GHA-cache comparison job on the Blacksmith runner anymore
-  (removed 2026-07-29): it was redundant with `se-demo-app-unmigrated`
-  already exercising GHA cache on its native `ubuntu-latest`, read as
-  confusing (a "GitHub Actions cache" job living on a Blacksmith runner),
-  and didn't even demo cleanly — `useblacksmith/build-push-action` prints
-  no cache-hit/miss signal in its logs at all (no `--cache-from`/
-  `--cache-to` flags, unlike `docker/build-push-action`'s visible `CACHED`
-  markers), so the pairing read backwards when compared side by side.
-  Don't reintroduce this pairing without solving that legibility gap
-  first.
+  `useblacksmith/setup-docker-builder` + `useblacksmith/build-push-action`)
+  — same job names as `workflows/unmigrated/`'s, for direct comparison.
+  **Both actions are required together**: `build-push-action` alone
+  silently falls back to Docker's default (non-Blacksmith) builder —
+  confirmed live via a "Not using a Blacksmith builder ... Build metrics
+  will not be reported" warning after this file was rewritten without
+  `setup-docker-builder` (fixed 2026-07-29). With both present, the log
+  shows an explicit `Getting sticky disk for <repo>` / `Successfully
+  obtained sticky disk` sequence — legible, just different in character
+  from `docker/build-push-action`'s per-layer `CACHED` markers (disk-level
+  vs. layer-level signal). There is deliberately **no** paired GHA-cache
+  comparison job on the Blacksmith runner (removed 2026-07-29): it was
+  redundant with `se-demo-app-unmigrated` already exercising GHA cache on
+  its native `ubuntu-latest`, and read as confusing (a "GitHub Actions
+  cache" job living on a Blacksmith runner).
 - The workflow-level `name:` in `ci.yml`/`test.yml`/`docker.yml` must
   match exactly across `workflows/current/` and `workflows/unmigrated/` —
   that's what lets you compare the same-named workflow across both repos'
