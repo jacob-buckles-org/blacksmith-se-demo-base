@@ -17,13 +17,11 @@ what it is, every time you open it:
   migration-wizard PR.
 - **`se-demo-app`** — the same app, migrated: Blacksmith runners +
   transparent dependency-cache acceleration + Blacksmith docker layer
-  caching (`useblacksmith/build-push-action`). Also carries paired "cold"
-  jobs (same runner, GitHub's `type=gha` cache) for single-feature
-  attribution, and one deliberately undersized job (E2E, 2 vCPU) that
-  feeds a standing Codesmith recommendation and an intermittent
-  OOM-caused flaky test. Every other job sits at the same fair
-  `blacksmith-4vcpu-ubuntu-2404` baseline that maps to `ubuntu-latest` —
-  nothing else is artificially mis-sized.
+  caching (`useblacksmith/build-push-action`). One deliberately undersized
+  job (E2E, 2 vCPU) feeds a standing Codesmith recommendation and an
+  intermittent OOM-caused flaky test. Every other job sits at the same
+  fair `blacksmith-4vcpu-ubuntu-2404` baseline that maps to
+  `ubuntu-latest` — nothing else is artificially mis-sized.
 
 Because nothing resets, there is no "reset the day before the call" step
 and no risk of a live migration-wizard run coming back slower on a bad
@@ -52,7 +50,7 @@ real, defensible gap to `se-demo-app`:
   Codesmith rightsizing has nothing to apply to on the unmigrated side;
   it's purely a `se-demo-app`-side story.
 
-## Demo arc (~30 min)
+## Demo arc (~25 min)
 
 1. **The pain (3 min).** Open `se-demo-app-unmigrated`'s Actions tab:
    real wall-clock times on `ubuntu-latest`, even with its own decent
@@ -67,12 +65,7 @@ real, defensible gap to `se-demo-app`:
    Blacksmith dashboard: same app, same workload, migrated. Compare
    wall-clock and cost against the unmigrated repo directly — two clean
    Actions tabs, nothing to filter or date-range.
-4. **Feature attribution (5 min).** In `se-demo-app`'s
-   `Docker: Backend & Frontend Images` run, point at "Backend image —
-   Blacksmith cache" next to "Backend image — GitHub Actions cache"
-   (same runner) — one run, both timings, isolates the cache-backend
-   delta from the hardware delta already shown in step 3.
-5. **Test analytics + flaky-test arc (8 min).** *(Validate this arc live
+4. **Test analytics + flaky-test arc (8 min).** *(Validate this arc live
    before the first real demo — the E2E OOM is a real resource
    constraint by design, not scripted, but hasn't been observed running
    for real yet. If it doesn't reproduce reliably, come back and increase
@@ -90,7 +83,7 @@ real, defensible gap to `se-demo-app`:
       recurring once rightsized — a visible, causal fix.
    7. Mention the single updated PR comment (test failure vs. infra
       flake) and Slack-connected monitors in passing.
-6. **Wrap (5 min).** Dashboard cumulative view: minutes saved, cost delta
+5. **Wrap (5 min).** Dashboard cumulative view: minutes saved, cost delta
    at their scale.
 
 ## What stays genuinely live

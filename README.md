@@ -27,12 +27,11 @@ workflows/unmigrated/
 - **`workflows/current/`** — `ci.yml` / `test.yml` / `docker.yml` for
   `se-demo-app`: Blacksmith runners with the canonical feature combo
   (runner migration, dependency-cache acceleration, Blacksmith docker
-  layer caching) baked in by hand, plus paired "cold" jobs (same runner,
-  GitHub's own `type=gha` cache) for single-feature attribution, and one
-  deliberately undersized job (E2E) that feeds a standing Codesmith
-  rightsizing recommendation and an intermittent OOM flake. Every other
-  job sits at the same `blacksmith-4vcpu-ubuntu-2404` fair baseline that
-  maps to `ubuntu-latest` — no artificially oversized jobs.
+  layer caching) baked in by hand, and one deliberately undersized job
+  (E2E) that feeds a standing Codesmith rightsizing recommendation and an
+  intermittent OOM flake. Every other job sits at the same
+  `blacksmith-4vcpu-ubuntu-2404` fair baseline that maps to
+  `ubuntu-latest` — no artificially oversized jobs.
 - **`workflows/unmigrated/`** — the same three workflows for
   `se-demo-app-unmigrated`: `ubuntu-latest`, with a reasonable, already-decent
   GHA setup (`actions/cache` for npm/Go/Playwright, `type=gha` Docker
@@ -60,7 +59,7 @@ invariant in `CLAUDE.md`).
 | --- | --- | --- |
 | **CI** — lint/typecheck/unit tests | 3-way Node matrix + backend build/vet/unit, all on `blacksmith-4vcpu-ubuntu-2404` | Same jobs on `ubuntu-latest` |
 | **Integration & E2E Tests** — backend Postgres integration + Playwright E2E | Backend integration on `blacksmith-4vcpu`; E2E on `blacksmith-2vcpu` (deliberately undersized — 3 browsers forced parallel, feeds the OOM-flake + Codesmith rightsizing arc) | Same two jobs, both on `ubuntu-latest` |
-| **Docker: Backend & Frontend Images** — image builds, never pushed | 4 jobs: backend/frontend via Blacksmith cache, plus paired GitHub-Actions-cache comparison siblings on the same runner | 2 jobs: backend/frontend via GitHub's `type=gha` cache only |
+| **Docker: Backend & Frontend Images** — image builds, never pushed | 2 jobs: backend/frontend via Blacksmith cache | 2 jobs: backend/frontend via GitHub's `type=gha` cache only |
 
 ## Workflows in this repo
 

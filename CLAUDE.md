@@ -16,8 +16,8 @@ GitHub repo: https://github.com/jacob-buckles-org/blacksmith-se-demo-base
   `docker-compose.yml`). No workflow files live here. Edited once, ever.
   Everything inside it is customer-visible in both target repos.
 - **`workflows/current/`** = `ci.yml`/`test.yml`/`docker.yml` for
-  `se-demo-app`: Blacksmith runners, the canonical feature combo, paired
-  "cold" jobs, deliberately mis-sized jobs. Hand-maintained directly — no
+  `se-demo-app`: Blacksmith runners, the canonical feature combo, one
+  deliberately undersized job (E2E). Hand-maintained directly — no
   patch/PR pipeline.
 - **`workflows/unmigrated/`** = the same three workflows for
   `se-demo-app-unmigrated`: `ubuntu-latest`, with a reasonable existing
@@ -82,13 +82,19 @@ GitHub repo: https://github.com/jacob-buckles-org/blacksmith-se-demo-base
 - `docker.yml` in both `workflows/` sets never pushes images (`push:
   false` everywhere, no registry login) — this workflow demonstrates
   build/cache timing only, never a deployment pipeline. `workflows/current/`
-  pairs each Blacksmith-cached build job (`build-backend`/`build-frontend`,
-  named "... — Blacksmith cache") with a `-gha-cache` sibling (named
-  "... — GitHub Actions cache") on the same runner class, isolating the
-  cache-backend delta from the hardware delta. Keep both jobs on the same
-  Blacksmith runner size when editing, and keep the cache-backend suffix
-  in both names — that's what makes the comparison legible in the Actions
-  job list.
+  has just 2 jobs (`build-backend`/`build-frontend`, Blacksmith cache via
+  `useblacksmith/build-push-action`) — same job names as
+  `workflows/unmigrated/`'s, for direct comparison. There is deliberately
+  **no** paired GHA-cache comparison job on the Blacksmith runner anymore
+  (removed 2026-07-29): it was redundant with `se-demo-app-unmigrated`
+  already exercising GHA cache on its native `ubuntu-latest`, read as
+  confusing (a "GitHub Actions cache" job living on a Blacksmith runner),
+  and didn't even demo cleanly — `useblacksmith/build-push-action` prints
+  no cache-hit/miss signal in its logs at all (no `--cache-from`/
+  `--cache-to` flags, unlike `docker/build-push-action`'s visible `CACHED`
+  markers), so the pairing read backwards when compared side by side.
+  Don't reintroduce this pairing without solving that legibility gap
+  first.
 - The workflow-level `name:` in `ci.yml`/`test.yml`/`docker.yml` must
   match exactly across `workflows/current/` and `workflows/unmigrated/` —
   that's what lets you compare the same-named workflow across both repos'
