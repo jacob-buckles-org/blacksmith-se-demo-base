@@ -37,3 +37,22 @@ real prospects will ask this.
 
 Could Codesmith guide me through onboarding new features?
 
+E2E OOM-flake reliability is unvalidated live (2026-07-29) — the design
+(3 browser projects forced parallel via `workers: 3` in
+`app/frontend/playwright.config.ts`, on a `blacksmith-2vcpu-ubuntu-2404`
+runner) is a real resource constraint, not scripted, but hasn't actually
+been observed failing yet. Watch the next several scheduled/triggered
+runs. If it doesn't reproduce reliably, next iteration: add a heavier
+in-memory fixture to the E2E test to increase memory pressure
+predictably rather than relying on incidental browser-process overhead.
+
+`frontend-checks` was normalized from `blacksmith-8vcpu` down to the fair
+`blacksmith-4vcpu-ubuntu-2404` baseline on 2026-07-29 (was deliberately
+oversized to manufacture a "scale down" Codesmith rec — Jacob's call:
+that undercut the honest-baseline premise). Every CI/Docker/Integration
+job now sits at that same 4 vCPU baseline except `e2e` (2 vCPU,
+intentionally undersized). Worth watching whether Codesmith organically
+flags `backend-test`/`docker-build`/`backend-integration` for scale-up
+once real history accumulates there — the historical recs logged above
+already showed exactly that shape at this same 4 vCPU baseline.
+

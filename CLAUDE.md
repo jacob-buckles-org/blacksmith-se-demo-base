@@ -60,17 +60,39 @@ GitHub repo: https://github.com/jacob-buckles-org/blacksmith-se-demo-base
   `setup-node`/`setup-go` / `docker/build-push-action` with `type=gha` —
   a real, decent GHA setup, not "caching off." `workflows/current/` uses
   the same standard `actions/cache`/`setup-*` calls (Blacksmith
-  accelerates them transparently) plus `useblacksmith/checkout` and
-  `useblacksmith/build-push-action` specifically. Don't blur this line in
-  either direction — the before/after credibility depends on it.
-- `se-demo-app`'s `frontend-checks` job (8 vCPU) and `e2e` job (2 vCPU)
-  are deliberately mis-sized on purpose — they feed a standing Codesmith
-  rightsizing recommendation and (the `e2e` job specifically, via 3
+  accelerates them transparently) plus `useblacksmith/build-push-action`
+  specifically. Don't blur this line in either direction — the
+  before/after credibility depends on it. Git-checkout caching
+  (`useblacksmith/checkout`) was deliberately dropped 2026-07-29 — plain
+  `actions/checkout@v4` is used in `workflows/current/` for now. This was
+  a fairness/simplicity call, not an oversight; fine to reintroduce later.
+- Only `se-demo-app`'s `e2e` job (2 vCPU) is deliberately undersized —
+  it feeds a standing Codesmith rightsizing recommendation and (via 3
   browser projects forced fully parallel in
   `app/frontend/playwright.config.ts`) an intermittent OOM-caused flaky
-  test. Don't "fix" these without updating the demo arc in
+  test. **This hasn't been validated live yet** — if the OOM doesn't
+  reproduce reliably once real runs accumulate, come back and increase
+  memory pressure in the E2E test deliberately (see `notepad.md`).
+  Every other CI/Docker/Integration job sits at the same fair
+  `blacksmith-4vcpu-ubuntu-2404` baseline that maps to `ubuntu-latest` —
+  as of 2026-07-29 nothing else is artificially oversized (frontend-checks
+  was normalized down from 8 vCPU). Don't reintroduce an oversized job or
+  "fix" the e2e undersizing without updating the demo arc in
   `DEMO_RUNBOOK.md`.
-- `docker.yml` in `workflows/current/` pairs each Blacksmith-cached build
-  job with a `-gha-cache` sibling on the same runner class, isolating the
+- `docker.yml` in both `workflows/` sets never pushes images (`push:
+  false` everywhere, no registry login) — this workflow demonstrates
+  build/cache timing only, never a deployment pipeline. `workflows/current/`
+  pairs each Blacksmith-cached build job (`build-backend`/`build-frontend`,
+  named "... — Blacksmith cache") with a `-gha-cache` sibling (named
+  "... — GitHub Actions cache") on the same runner class, isolating the
   cache-backend delta from the hardware delta. Keep both jobs on the same
-  Blacksmith runner size when editing.
+  Blacksmith runner size when editing, and keep the cache-backend suffix
+  in both names — that's what makes the comparison legible in the Actions
+  job list.
+- The workflow-level `name:` in `ci.yml`/`test.yml`/`docker.yml` must
+  match exactly across `workflows/current/` and `workflows/unmigrated/` —
+  that's what lets you compare the same-named workflow across both repos'
+  Actions tabs directly.
+- README.md's "workflow pairs" table must be kept in sync with
+  `workflows/current/` and `workflows/unmigrated/` — update both in the
+  same commit whenever a job's runner size, jobs, or display name changes.

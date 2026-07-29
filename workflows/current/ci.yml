@@ -18,12 +18,9 @@ env:
   METRICS_WORKLOAD: "200"
 
 jobs:
-  # Deliberately oversized: lint/typecheck/unit tests for a small dashboard
-  # don't need 8 vCPU. Left this way on purpose so Codesmith has a standing
-  # rightsizing recommendation to apply live (see DEMO_RUNBOOK.md).
   frontend-checks:
     name: Frontend (Node ${{ matrix.node }})
-    runs-on: blacksmith-8vcpu-ubuntu-2404
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     strategy:
       fail-fast: false
       matrix:
@@ -32,7 +29,7 @@ jobs:
       run:
         working-directory: frontend
     steps:
-      - uses: useblacksmith/checkout@v1
+      - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
@@ -59,7 +56,7 @@ jobs:
       run:
         working-directory: backend
     steps:
-      - uses: useblacksmith/checkout@v1
+      - uses: actions/checkout@v4
 
       - uses: actions/setup-go@v5
         with:
@@ -86,7 +83,7 @@ jobs:
       run:
         working-directory: backend
     steps:
-      - uses: useblacksmith/checkout@v1
+      - uses: actions/checkout@v4
 
       - uses: actions/setup-go@v5
         with:

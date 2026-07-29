@@ -1,4 +1,8 @@
-name: Docker
+name: "Docker: Backend & Frontend Images"
+
+# Builds are never pushed anywhere — this workflow exists to demonstrate
+# build/cache timing, not to publish a deployable image, so there's no
+# registry login and no push step.
 
 on:
   push:
@@ -10,24 +14,19 @@ on:
 
 permissions:
   contents: read
-  packages: write
 
 jobs:
   build-backend:
-    name: Build backend image
+    name: Backend image — Blacksmith cache
     runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
-      - uses: useblacksmith/checkout@v1
+      - uses: actions/checkout@v4
 
-      - name: Log in to GHCR
-        if: github.event_name != 'pull_request'
-        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-
-      - name: Build and push image
+      - name: Build image
         uses: useblacksmith/build-push-action@v2
         with:
           context: backend/
-          push: ${{ github.event_name != 'pull_request' }}
+          push: false
           tags: |
             ghcr.io/${{ github.repository }}/metrics-backend:${{ github.sha }}
             ghcr.io/${{ github.repository }}/metrics-backend:latest
@@ -38,22 +37,14 @@ jobs:
   # isolating the cache-backend delta from the hardware delta already
   # shown by comparing this repo to se-demo-app-unmigrated.
   build-backend-gha-cache:
-    name: Build backend image (GHA cache, for comparison)
+    name: Backend image — GitHub Actions cache
     runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
-      - uses: useblacksmith/checkout@v1
+      - uses: actions/checkout@v4
 
       - uses: docker/setup-buildx-action@v3
 
-      - name: Log in to GHCR
-        if: github.event_name != 'pull_request'
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build and push image
+      - name: Build image
         uses: docker/build-push-action@v6
         with:
           context: backend/
@@ -64,42 +55,30 @@ jobs:
           cache-to: type=gha,mode=max,scope=backend-comparison
 
   build-frontend:
-    name: Build frontend image
+    name: Frontend image — Blacksmith cache
     runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
-      - uses: useblacksmith/checkout@v1
+      - uses: actions/checkout@v4
 
-      - name: Log in to GHCR
-        if: github.event_name != 'pull_request'
-        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-
-      - name: Build and push image
+      - name: Build image
         uses: useblacksmith/build-push-action@v2
         with:
           context: frontend/
-          push: ${{ github.event_name != 'pull_request' }}
+          push: false
           tags: |
             ghcr.io/${{ github.repository }}/metrics-dashboard:${{ github.sha }}
             ghcr.io/${{ github.repository }}/metrics-dashboard:latest
 
   # Paired "cold" job — see build-backend-gha-cache above.
   build-frontend-gha-cache:
-    name: Build frontend image (GHA cache, for comparison)
+    name: Frontend image — GitHub Actions cache
     runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
-      - uses: useblacksmith/checkout@v1
+      - uses: actions/checkout@v4
 
       - uses: docker/setup-buildx-action@v3
 
-      - name: Log in to GHCR
-        if: github.event_name != 'pull_request'
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build and push image
+      - name: Build image
         uses: docker/build-push-action@v6
         with:
           context: frontend/

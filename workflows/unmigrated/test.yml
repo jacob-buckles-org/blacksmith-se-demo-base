@@ -1,4 +1,4 @@
-name: Integration Tests
+name: Integration & E2E Tests
 
 on:
   push:
@@ -12,6 +12,9 @@ env:
   METRICS_WORKLOAD: "200"
 
 jobs:
+  # The Postgres image here is test infrastructure only — a throwaway
+  # database for the integration suite to run against. Unrelated to the
+  # Docker workflow, which builds this app's own backend/frontend images.
   backend-integration:
     name: Backend integration (Postgres)
     runs-on: ubuntu-latest

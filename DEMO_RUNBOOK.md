@@ -17,11 +17,13 @@ what it is, every time you open it:
   migration-wizard PR.
 - **`se-demo-app`** — the same app, migrated: Blacksmith runners +
   transparent dependency-cache acceleration + Blacksmith docker layer
-  caching (`useblacksmith/build-push-action`) + git-checkout caching
-  (`useblacksmith/checkout`). Also carries paired "cold" jobs (same
-  runner, GitHub's `type=gha` cache) for single-feature attribution, and
-  1-2 deliberately mis-sized jobs that feed a standing Codesmith
-  recommendation and an intermittent OOM-caused flaky test.
+  caching (`useblacksmith/build-push-action`). Also carries paired "cold"
+  jobs (same runner, GitHub's `type=gha` cache) for single-feature
+  attribution, and one deliberately undersized job (E2E, 2 vCPU) that
+  feeds a standing Codesmith recommendation and an intermittent
+  OOM-caused flaky test. Every other job sits at the same fair
+  `blacksmith-4vcpu-ubuntu-2404` baseline that maps to `ubuntu-latest` —
+  nothing else is artificially mis-sized.
 
 Because nothing resets, there is no "reset the day before the call" step
 and no risk of a live migration-wizard run coming back slower on a bad
@@ -65,12 +67,16 @@ real, defensible gap to `se-demo-app`:
    Blacksmith dashboard: same app, same workload, migrated. Compare
    wall-clock and cost against the unmigrated repo directly — two clean
    Actions tabs, nothing to filter or date-range.
-4. **Feature attribution (5 min).** In `se-demo-app`'s `docker.yml` run,
-   point at `build-backend` (Blacksmith cache) next to
-   `build-backend-gha-cache` (GitHub's `type=gha` cache, same runner) —
-   one run, both timings, isolates the cache-backend delta from the
-   hardware delta already shown in step 3.
-5. **Test analytics + flaky-test arc (8 min).** On `se-demo-app`:
+4. **Feature attribution (5 min).** In `se-demo-app`'s
+   `Docker: Backend & Frontend Images` run, point at "Backend image —
+   Blacksmith cache" next to "Backend image — GitHub Actions cache"
+   (same runner) — one run, both timings, isolates the cache-backend
+   delta from the hardware delta already shown in step 3.
+5. **Test analytics + flaky-test arc (8 min).** *(Validate this arc live
+   before the first real demo — the E2E OOM is a real resource
+   constraint by design, not scripted, but hasn't been observed running
+   for real yet. If it doesn't reproduce reliably, come back and increase
+   memory pressure in the E2E test deliberately.)* On `se-demo-app`:
    1. Test analytics shows the E2E job's flakiness % and run history.
    2. Global log search finds the OOM message across the flaky runs
       instantly.

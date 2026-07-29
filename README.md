@@ -27,11 +27,12 @@ workflows/unmigrated/
 - **`workflows/current/`** — `ci.yml` / `test.yml` / `docker.yml` for
   `se-demo-app`: Blacksmith runners with the canonical feature combo
   (runner migration, dependency-cache acceleration, Blacksmith docker
-  layer caching, git-checkout caching) baked in by hand, plus paired
-  "cold" jobs (same runner, GitHub's own `type=gha` cache) for
-  single-feature attribution, and 1-2 deliberately mis-sized jobs that
-  feed a standing Codesmith rightsizing recommendation and an intermittent
-  OOM flake.
+  layer caching) baked in by hand, plus paired "cold" jobs (same runner,
+  GitHub's own `type=gha` cache) for single-feature attribution, and one
+  deliberately undersized job (E2E) that feeds a standing Codesmith
+  rightsizing recommendation and an intermittent OOM flake. Every other
+  job sits at the same `blacksmith-4vcpu-ubuntu-2404` fair baseline that
+  maps to `ubuntu-latest` — no artificially oversized jobs.
 - **`workflows/unmigrated/`** — the same three workflows for
   `se-demo-app-unmigrated`: `ubuntu-latest`, with a reasonable, already-decent
   GHA setup (`actions/cache` for npm/Go/Playwright, `type=gha` Docker
@@ -46,6 +47,20 @@ workflows/unmigrated/
   deliberately change `app/` or a workflow file.
 - **Root** (this level) is SE-facing only and never reaches customers:
   this README, the runbook, `CLAUDE.md`, and the workflows below.
+
+## The three workflow pairs
+
+Each pair is the same workflow file, once per repo — same jobs, same
+workload, different runner/caching. **Keep this table in sync**: if you
+change a job's runner size, jobs, or display name in either `workflows/`
+set, update this table in the same commit (see also the matching
+invariant in `CLAUDE.md`).
+
+| Pair | `se-demo-app` (current) | `se-demo-app-unmigrated` |
+| --- | --- | --- |
+| **CI** — lint/typecheck/unit tests | 3-way Node matrix + backend build/vet/unit, all on `blacksmith-4vcpu-ubuntu-2404` | Same jobs on `ubuntu-latest` |
+| **Integration & E2E Tests** — backend Postgres integration + Playwright E2E | Backend integration on `blacksmith-4vcpu`; E2E on `blacksmith-2vcpu` (deliberately undersized — 3 browsers forced parallel, feeds the OOM-flake + Codesmith rightsizing arc) | Same two jobs, both on `ubuntu-latest` |
+| **Docker: Backend & Frontend Images** — image builds, never pushed | 4 jobs: backend/frontend via Blacksmith cache, plus paired GitHub-Actions-cache comparison siblings on the same runner | 2 jobs: backend/frontend via GitHub's `type=gha` cache only |
 
 ## Workflows in this repo
 
@@ -80,7 +95,9 @@ Generate CI activity**.
 
 Edit `app/` or a file under `workflows/current/` / `workflows/unmigrated/`
 on `main` here, then run **SE: Rebuild demo repos**. That's the whole
-sync step — there's no per-repo edit to remember.
+sync step — there's no per-repo edit to remember. If the edit touches a
+job's runner size, jobs, or name, update the workflow-pairs table above
+in the same commit.
 
 - `app/backend/internal/events/` is generated — edit
   `app/backend/tools/genevents` and re-run `go run ./tools/genevents`
