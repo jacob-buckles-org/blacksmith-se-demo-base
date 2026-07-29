@@ -65,9 +65,11 @@ will not be reported" warning, meaning zero Blacksmith cache benefit was
 active in any se-demo-app Docker run before the fix. Fixed; the first
 post-fix run correctly showed a fresh sticky disk being created (`Getting
 sticky disk for jacob-buckles-org/se-demo-app` → `Successfully obtained
-sticky disk`), so this was a cold build as expected. Watch the *next*
-scheduled/triggered Docker run — it should reuse that sticky disk and
-show a real speedup (faster base-image layer restore, faster `go
-build`/`npm ci`). If it doesn't, the sticky-disk caching itself needs
-investigating, not just the builder wiring.
+sticky disk`), so this was a cold build as expected. **Confirmed working
+on the very next run** (same day): the sticky disk parent snapshot
+changed from a `__base__...` snapshot to a `commit-...` snapshot (i.e.,
+committed from the prior run), and the `FROM golang:1.24` layer restored
+in `0.0s` instead of the ~5-8s full extraction seen cold. Blacksmith
+docker layer caching on `se-demo-app` is confirmed real and working as of
+2026-07-29.
 
