@@ -68,6 +68,7 @@ invariant in `CLAUDE.md`).
 | `SE: Rebuild demo repos` | Pushes current `app/` + `workflows/{current,unmigrated}` to `se-demo-app` / `se-demo-app-unmigrated` (`current` / `unmigrated` / `both`). Creates the repo on first use. Normal commit, not a reset. |
 | `SE: Generate CI activity` | "Goose it now" button: triggers `ci`/`test`/`docker` via `workflow_dispatch` on a target repo, on top of its own `schedule:` triggers. No commits. |
 | `Validate` | Base-repo CI: fast correctness checks on `app/` and `workflows/` changes |
+| `SE: SSH sandbox` | No demo purpose — spins up a Blacksmith VM and holds it open (`minutes` input) so you can SSH in and poke around. `workflow_dispatch` only. |
 
 ## Setup (one-time)
 

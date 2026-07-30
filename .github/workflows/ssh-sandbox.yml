@@ -1,0 +1,28 @@
+name: "SE: SSH sandbox"
+
+# Spins up a Blacksmith VM and holds it open for a while so you can SSH in
+# and poke around — no demo purpose, just a quick way to try SSH access.
+# See: https://docs.blacksmith.sh/blacksmith-observability/ssh-access
+#
+# The SSH command + unique port are printed in this run's "Set up runner"
+# step. One-time prerequisites: SSH access enabled at the org level
+# (Settings > Features) and your public SSH key added to your GitHub
+# account.
+
+on:
+  workflow_dispatch:
+    inputs:
+      minutes:
+        description: "How long to keep the VM alive"
+        default: "30"
+
+jobs:
+  ssh-sandbox:
+    name: SSH sandbox (${{ inputs.minutes }} min)
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    steps:
+      - name: Hold the VM open for SSH
+        run: |
+          echo "SSH command is in the 'Set up runner' step above."
+          echo "Keeping this VM alive for ${{ inputs.minutes }} minutes..."
+          sleep "$(( ${{ inputs.minutes }} * 60 ))"
