@@ -103,7 +103,9 @@ GitHub repo: https://github.com/jacob-buckles-org/blacksmith-se-demo-base
   that's what lets you compare the same-named workflow across both repos'
   Actions tabs directly.
 - **Demo material for test analytics / flaky tests / log search / container
-  caching** (added 2026-07-31 — see the arc in `DEMO_RUNBOOK.md`):
+  caching** (added 2026-07-31 — arc in `DEMO_RUNBOOK.md`, full mechanics and
+  the realistic-story framing in `DEMO_MECHANICS.md`; update that file
+  whenever any of these mechanics change):
   - Test Analytics needs no Blacksmith-side config: it auto-detects JUnit
     XML written anywhere on disk during a job. Playwright and Vitest are
     configured to emit it under `frontend/test-results/` when `CI` is set.

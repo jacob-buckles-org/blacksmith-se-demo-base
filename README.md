@@ -8,6 +8,10 @@ during a call.
 **Start here:** [`DEMO_RUNBOOK.md`](DEMO_RUNBOOK.md) — talk track and
 demo arc. [`VERIFY.md`](VERIFY.md) is the hands-on checklist for
 confirming each demoed feature actually works before you rely on it.
+[`DEMO_MECHANICS.md`](DEMO_MECHANICS.md) records what's deliberately
+engineered in the demo repos (the flaky test, the searchable log line, the
+undersized runner) — how each one works and the real-world story behind it,
+for when a prospect asks.
 
 ## How it works
 

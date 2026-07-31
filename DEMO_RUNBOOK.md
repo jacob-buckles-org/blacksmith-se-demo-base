@@ -4,6 +4,9 @@ SE-facing. Only `se-demo-app` and `se-demo-app-unmigrated` reach
 customers — everything at the root of this repo (`README.md`, this file,
 `CLAUDE.md`, the workflows) is internal.
 
+For *why* the flaky test flakes, how it's built, and how to answer "would
+this really happen?" — see [`DEMO_MECHANICS.md`](DEMO_MECHANICS.md).
+
 ## What this repo is
 
 A build factory for two **permanent, steady-state** demo repos — nothing
