@@ -65,14 +65,16 @@ real, defensible gap to `se-demo-app`:
    Blacksmith dashboard: same app, same workload, migrated. Compare
    wall-clock and cost against the unmigrated repo directly — two clean
    Actions tabs, nothing to filter or date-range.
-4. **Container caching (3 min).** Open the same
-   `Docker: Images & Stack Smoke` workflow in both repos and compare the
-   **Initialize Containers** step (the `postgres:16` service container in
-   `Integration & E2E Tests`) and the `stack-smoke` job's image pulls.
-   Unmigrated pulls and extracts postgres plus the `golang`/`node` build
-   bases every run; migrated has them already on disk. "Your test
-   dependencies stop being a download." *(Needs the org feature enabled —
-   see Setup in README.)*
+4. **Container caching (3 min).** Compare the `stack-smoke` job across both
+   repos — it pulls `postgres:16` plus the much larger `golang`/`node`
+   build bases, so it's the better of the two showcases. Point at the
+   `Pulling fs layer` / `Extracting` lines present on the unmigrated side
+   and absent on the migrated one: "your test dependencies stop being a
+   download." The `postgres:16` service container in
+   `Integration & E2E Tests` is supporting detail, not the headline — its
+   unmigrated baseline is only ~10s, so the best possible saving there is
+   ~7–8s. *(Needs the org feature enabled — see Setup in README, and the
+   measured baselines in `VERIFY.md` for how to confirm it's live.)*
 5. **Test analytics + flaky-test arc (8 min).** On `se-demo-app`:
    1. **Test Analytics** — the Tests tab is populated with no config on
       your side: JUnit XML from Playwright and Vitest is auto-detected,

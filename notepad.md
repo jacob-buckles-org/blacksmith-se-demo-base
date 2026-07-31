@@ -28,6 +28,28 @@ full rationale.
   transient network — moot, the wizard is no longer run live in front of
   a prospect (narrated from the standing draft PR instead).
 
+Container caching support ticket filed 2026-07-31. Measured baselines that
+same day confirm it was **not yet active**, and they double as the way to
+detect when it lands (there's no dashboard toggle to check):
+
+- `Initialize containers` (postgres:16 service), 10 runs each — se-demo-app
+  ~10s vs unmigrated ~10s, i.e. **identical**, so no caching in effect.
+- `Bring up the stack` (compose, also pulls golang:1.24 + node:22) —
+  se-demo-app 34-44s vs unmigrated 66-80s.
+
+Two things to keep straight about those numbers:
+
+- The ~2x compose delta is **not** container caching (it wasn't on). Both
+  runners are 4 vCPU / 16 GB — public-repo `ubuntu-latest` matches
+  `blacksmith-4vcpu-ubuntu-2404` on paper — so that gap is CPU generation,
+  disk I/O and network throughput. Which is a useful data point in its own
+  right: it's clean evidence for the "hardware, not just core count" claim
+  in the honest-baseline section.
+- The postgres-only comparison can never be dramatic: unmigrated is already
+  ~10s, so a perfect cache saves ~7-8s. The docs' "minutes to seconds"
+  framing assumes much heavier service-container setups. The runbook was
+  reworded to lead with the compose job instead.
+
 ## Still open
 
 Is there a good way to track the evolution of the improvements as we

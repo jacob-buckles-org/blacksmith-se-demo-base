@@ -164,28 +164,53 @@ beat still works on a day the flake doesn't fire. Keep them independent.
 
 ## 4. Docker container caching
 
-*(Blocked until the support issue in section 0 is done.)*
+Support ticket filed 2026-07-31. **Measured that same day, it was not yet
+active** — see baselines below, which are also how you tell when it lands.
 
-Two places to look, easiest first:
+### Baselines measured before caching took effect (2026-07-31)
 
-- [ ] **Service container.** Open `Integration & E2E Tests` in both
-  ```
-  repos and compare the **Initialize Containers** step, where the
-  `postgres:16` service is pulled and started. Unmigrated pulls and
-  extracts it every run; migrated should drop to seconds.
-  ```
-- [ ] **Compose stack.** Compare the `Full-stack smoke (docker compose)`
-  ```
-  job in both repos. It runs `docker compose up -d --build`, which pulls
-  `postgres:16` plus the `golang:1.24` and `node:22` build bases —
-  much bigger images, so a bigger delta. Baseline timings before
-  caching: ~1m20s on `ubuntu-latest`, ~1m11s in base-repo `Validate`.
-  ```
-- [ ] In the unmigrated run's log, confirm the visible
-  ```
-  `Pulling fs layer` / `Extracting` progress lines — that's the cost
-  being eliminated.
-  ```
+`Initialize containers` — the `postgres:16` service in
+`Integration & E2E Tests`, sampled over 10 runs each:
+
+| Repo | Initialize containers |
+| --- | --- |
+| `se-demo-app` (Blacksmith) | 6–14s, typically **~10s** |
+| `se-demo-app-unmigrated` (`ubuntu-latest`) | 8–12s, typically **~10s** |
+
+`Bring up the stack` — the compose job, which also pulls the much larger
+`golang:1.24` and `node:22` build bases:
+
+| Repo | Bring up the stack |
+| --- | --- |
+| `se-demo-app` (Blacksmith) | 34–44s (**~38s**) |
+| `se-demo-app-unmigrated` (`ubuntu-latest`) | 66–80s (**~72s**) |
+
+### Two honest expectations to set
+
+1. **The postgres-only comparison will never be dramatic.** The unmigrated
+   baseline is already only ~10s, so even a perfect cache saves ~7–8s. The
+   docs' "minutes to seconds" claim assumes far heavier service-container
+   setups than one Postgres. Don't build the beat around this number — use
+   it as supporting detail.
+2. **The ~38s vs ~72s compose delta is real but is *not* container caching**
+   — caching wasn't active when it was measured. Both runners are 4 vCPU /
+   16 GB (public-repo `ubuntu-latest` matches
+   `blacksmith-4vcpu-ubuntu-2404` on paper), so that ~2x is CPU
+   generation, disk I/O and network throughput — i.e. the hardware story
+   from the honest-baseline section. Attribute it correctly if asked.
+
+### Checks
+
+- [ ] Re-run the numbers above and confirm `se-demo-app`'s figures have
+      dropped relative to these baselines. That's the only reliable signal
+      that the ticket has been actioned — there's no dashboard toggle to
+      look at.
+- [ ] In the unmigrated run's log, confirm the visible `Pulling fs layer` /
+      `Extracting` progress lines, then confirm they're absent (or much
+      shorter) on the migrated side. This is more legible than the raw
+      durations.
+- [ ] Once active, the compose job is the better showcase of the two —
+      bigger images, bigger delta.
 
 That job deliberately uses **plain** `docker compose`**, no Blacksmith
 builder**, so its cost is dominated by image *pulls* (container caching)
