@@ -104,11 +104,39 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: workflows/current and workflows/unmigrated parse as YAML
+      - name: workflow overlays parse as YAML
         run: |
-          for f in workflows/current/*.yml workflows/unmigrated/*.yml; do
+          for f in workflows/*/*.yml; do
             python3 -c "import yaml,sys; yaml.safe_load(open(sys.argv[1]))" "$f" && echo "ok: $f"
           done
+
+  # Scenario patches are applied to se-demo-app-prs by "SE: Simulate PR
+  # activity". An app/ change can silently stop one applying, which would
+  # only surface when you try to open the PR — mid-demo-prep at the worst.
+  # Catch it here instead.
+  scenario-patches:
+    name: Scenario patches still apply
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Apply every scenario patch to current app/
+        run: |
+          set -uo pipefail
+          git config user.name "patch-check"
+          git config user.email "patch-check@invalid"
+          FAILED=0
+          for PATCH in scenarios/*.patch; do
+            git checkout -q -B patch-check "${GITHUB_SHA}"
+            if git am -q "$PATCH" 2>/dev/null; then
+              echo "ok: $PATCH"
+            else
+              git am --abort 2>/dev/null || true
+              echo "::error file=$PATCH::$PATCH no longer applies to app/ — regenerate it (see DEMO_MECHANICS.md)"
+              FAILED=1
+            fi
+          done
+          exit $FAILED
 
   # Mirrors the stack-smoke job both demo repos run. Kept here so a change to
   # app/ that breaks the compose stack fails in this repo, not at demo time.

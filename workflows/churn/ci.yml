@@ -1,0 +1,80 @@
+name: CI
+
+# Deliberately lean and fast. This repo exists to demo the pull-request
+# loop — open a PR, watch CI catch a regression, let [code]smith diagnose
+# and fix it — so CI feedback needs to arrive in a couple of minutes, not
+# the six-plus this suite takes at demo-scale workload.
+#
+# Two things are intentionally different from the other demo repos:
+#   - METRICS_WORKLOAD is small, so the CPU-bound fingerprint sweep doesn't
+#     dominate the run. The "slow CI" story belongs to
+#     se-demo-app-unmigrated, not here.
+#   - The Playwright E2E suite is not run. It carries a deliberately
+#     flaky timing test (see DEMO_MECHANICS.md) which would redden PRs for
+#     reasons unrelated to the change under review — and, with autofix
+#     enabled, could send [code]smith chasing a flake instead of the
+#     regression.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+env:
+  METRICS_WORKLOAD: "20"
+
+jobs:
+  frontend-checks:
+    name: Frontend
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm run test:unit
+
+  backend-checks:
+    name: Backend
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+
+      - name: Build and vet
+        run: |
+          go build ./...
+          go vet ./...
+
+      - name: Verify generated events are current
+        run: |
+          go run ./tools/genevents
+          git diff --exit-code internal/events/
+
+      - name: Unit tests
+        run: go test -count=1 -v ./...

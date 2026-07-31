@@ -1,0 +1,135 @@
+name: "SE: Simulate PR activity"
+
+# Opens a scenario pull request against se-demo-app-prs so you can demo the
+# development loop: a plausible-looking PR lands, CI catches a regression,
+# and [code]smith diagnoses and fixes it.
+#
+# Scenarios live in scenarios/NN-<name>.patch as single-commit
+# `git format-patch` output touching app/ paths. The commit subject becomes
+# the PR title and the body becomes the PR body, so both are
+# customer-visible — write them as a real engineer would. Patches are
+# applied with `git am -p2` to strip the leading `a/app/`, since app/
+# contents sit at the repo root in the target.
+#
+# Autofix note: [code]smith enables autofix automatically only on PRs it
+# created itself. A PR opened here therefore stays broken until you either
+# click "Autofix with [code]smith" on it or turn autofix on for all PRs in
+# settings. That's deliberate — it gives you a standing broken PR to open
+# cold plus a live moment to trigger the fix.
+#
+# SAFETY: this workflow mutates branches and PRs, so it is hard-scoped to
+# se-demo-app-prs and refuses to run anywhere else. The two steady-state
+# demo repos must never be a target.
+#
+# Requires org secret DEMO_PROVISION_TOKEN (repo + workflow scopes).
+
+on:
+  workflow_dispatch:
+    inputs:
+      scenario:
+        description: "Scenario patch to open as a PR"
+        type: choice
+        options:
+          - 01-single-pass-rollup
+        default: 01-single-pass-rollup
+      action:
+        description: "open = create the scenario PR, cleanup = close scenario PRs and delete their branches"
+        type: choice
+        options: [open, cleanup]
+        default: open
+
+env:
+  # Hard-coded, not an input. See SAFETY above.
+  TARGET_REPO: jacob-buckles-org/se-demo-app-prs
+  BRANCH_PREFIX: scenario
+  GH_TOKEN: ${{ secrets.DEMO_PROVISION_TOKEN }}
+
+jobs:
+  simulate:
+    name: "${{ inputs.action }}: ${{ inputs.scenario }}"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Guard the target
+        run: |
+          set -euo pipefail
+          case "$TARGET_REPO" in
+            */se-demo-app-prs) ;;
+            *)
+              echo "::error::refusing to run against '$TARGET_REPO' — this workflow may only target se-demo-app-prs"
+              exit 1
+              ;;
+          esac
+          if ! gh repo view "$TARGET_REPO" >/dev/null 2>&1; then
+            echo "::error::$TARGET_REPO does not exist — run 'SE: Rebuild demo repos' with target 'churn' first"
+            exit 1
+          fi
+
+      - name: Clone the target
+        run: |
+          set -euo pipefail
+          git config --global user.name "Jacob Buckles"
+          git config --global user.email "buckles@blacksmith.sh"
+          git clone -q "https://x-access-token:${GH_TOKEN}@github.com/${TARGET_REPO}.git" work
+
+      - name: Close scenario PRs and delete their branches
+        if: inputs.action == 'cleanup'
+        run: |
+          set -euo pipefail
+          cd work
+          CLOSED=0
+          for NUM in $(gh pr list --repo "$TARGET_REPO" --state open \
+                --json number,headRefName \
+                --jq ".[] | select(.headRefName | startswith(\"${BRANCH_PREFIX}/\")) | .number"); do
+            gh pr close "$NUM" --repo "$TARGET_REPO" --delete-branch
+            echo "closed PR #${NUM}"
+            CLOSED=$((CLOSED+1))
+          done
+          # Sweep up scenario branches with no PR attached.
+          for REF in $(git ls-remote --heads origin "refs/heads/${BRANCH_PREFIX}/*" | awk '{print $2}'); do
+            git push -q origin --delete "$REF" || true
+            echo "deleted ${REF}"
+          done
+          echo "- closed ${CLOSED} scenario PR(s) on [${TARGET_REPO}](https://github.com/${TARGET_REPO}/pulls)" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Open the scenario PR
+        if: inputs.action == 'open'
+        run: |
+          set -euo pipefail
+          PATCH="$GITHUB_WORKSPACE/scenarios/${{ inputs.scenario }}.patch"
+          if [ ! -f "$PATCH" ]; then
+            echo "::error::no such scenario patch: scenarios/${{ inputs.scenario }}.patch"
+            exit 1
+          fi
+
+          cd work
+          # Unique branch so repeated demos don't collide, and so previous
+          # runs' PRs can be left open as history.
+          BRANCH="${BRANCH_PREFIX}/${{ inputs.scenario }}-$(date -u +%m%d-%H%M)"
+          git checkout -q -b "$BRANCH" origin/main
+
+          # -p2 strips "a/" and "app/" so the patch lands at the repo root.
+          if ! git am -p2 "$PATCH"; then
+            git am --abort || true
+            echo "::error::scenarios/${{ inputs.scenario }}.patch no longer applies to ${TARGET_REPO}'s main — regenerate it (see DEMO_MECHANICS.md)"
+            exit 1
+          fi
+
+          git push -q origin "$BRANCH"
+
+          TITLE=$(git log -1 --format=%s)
+          BODY=$(git log -1 --format=%b)
+          URL=$(gh pr create --repo "$TARGET_REPO" --head "$BRANCH" --base main \
+            --title "$TITLE" --body "$BODY")
+
+          {
+            echo "### Scenario PR opened"
+            echo
+            echo "- **${TITLE}**"
+            echo "- ${URL}"
+            echo
+            echo "CI should go red on \`Frontend / Unit tests\`. To demo the fix, open the PR"
+            echo "and click **Autofix with [code]smith** — autofix is not automatic on PRs"
+            echo "[code]smith did not create itself."
+          } >> "$GITHUB_STEP_SUMMARY"

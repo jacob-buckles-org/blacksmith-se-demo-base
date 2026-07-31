@@ -1,0 +1,55 @@
+From 152c8caa11b2a74bccf21533d068fb80cea8b7e9 Mon Sep 17 00:00:00 2001
+From: Jacob Buckles <buckles@blacksmith.sh>
+Date: Fri, 31 Jul 2026 16:02:51 -0400
+Subject: [PATCH] perf(aggregate): roll up service metrics in a single pass
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+summarizeByService walked each service's bucket three times — once per
+reduce() — to total requests, total errors and the p95 sum. That showed up
+in profiles once the larger tenants started sending hundreds of thousands
+of points per window, since the rollup runs on every dashboard render.
+
+Collapses the three passes into one loop over the bucket. No behaviour
+change intended; the returned shape and sort order are unchanged.
+---
+ app/frontend/src/lib/aggregate.ts | 19 ++++++++++++++-----
+ 1 file changed, 14 insertions(+), 5 deletions(-)
+
+diff --git a/app/frontend/src/lib/aggregate.ts b/app/frontend/src/lib/aggregate.ts
+index 27f2761..59950e4 100644
+--- a/app/frontend/src/lib/aggregate.ts
++++ b/app/frontend/src/lib/aggregate.ts
+@@ -14,14 +14,23 @@ export function summarizeByService(points: MetricPoint[]): ServiceSummary[] {
+ 
+   const summaries: ServiceSummary[] = []
+   for (const [service, bucket] of byService) {
+-    const totalRequests = bucket.reduce((sum, p) => sum + p.requests, 0)
+-    const totalErrors = bucket.reduce((sum, p) => sum + p.errors, 0)
+-    const avgP95 = bucket.reduce((sum, p) => sum + p.p95LatencyMs, 0) / bucket.length
++    // Single pass: the previous three reduce() calls each walked the whole
++    // bucket, which showed up in profiles once tenants started sending
++    // hundreds of thousands of points per window.
++    let totalRequests = 0
++    let totalErrors = 0
++    let p95Sum = 0
++    for (const point of bucket) {
++      totalRequests += point.requests
++      totalErrors += point.errors
++      p95Sum += point.p95LatencyMs
++    }
++
+     summaries.push({
+       service,
+       totalRequests,
+-      errorRate: totalRequests === 0 ? 0 : totalErrors / totalRequests,
+-      avgP95LatencyMs: avgP95,
++      errorRate: bucket.length === 0 ? 0 : totalErrors / bucket.length,
++      avgP95LatencyMs: p95Sum / bucket.length,
+     })
+   }
+ 
+-- 
+2.50.1 (Apple Git-155)
+

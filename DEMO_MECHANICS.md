@@ -230,7 +230,75 @@ jobs** — any Codesmith recommendation should be organic.
 
 ---
 
-## 4. What is *not* engineered
+## 4. Scenario PRs (`se-demo-app-prs`)
+
+**Where:** `scenarios/NN-<name>.patch`, opened by
+`SE: Simulate PR activity` against `se-demo-app-prs`.
+
+Each scenario is a single-commit `git format-patch` touching `app/` paths.
+The commit **subject becomes the PR title and the body becomes the PR
+body**, so both are customer-visible — write them as a real engineer would.
+Applied with `git am -p2` to strip the leading `a/app/`, because `app/`
+contents sit at the repo root in the target.
+
+`Validate` re-applies every scenario patch to current `app/` on each push,
+so an `app/` change that breaks one fails there rather than during demo prep.
+
+### Regenerating a scenario patch
+
+```sh
+git checkout -b tmp-scenario main
+git am scenarios/01-single-pass-rollup.patch   # patch -> commit
+# ...edit, then: git commit -a --amend
+git format-patch -1 --stdout > scenarios/01-single-pass-rollup.patch
+git checkout main && git branch -D tmp-scenario
+```
+
+### 4.1 `01-single-pass-rollup`
+
+**PR title:** *perf(aggregate): roll up service metrics in a single pass*
+
+**What it claims to do:** replace the three `reduce()` walks in
+`summarizeByService` with one loop, framed as a profiling win now that large
+tenants send hundreds of thousands of points per window.
+
+**The planted bug:** the rewrite changes the `errorRate` denominator from
+`totalRequests` to `bucket.length` — i.e. errors per *data point* instead of
+errors per *request*.
+
+```ts
+errorRate: bucket.length === 0 ? 0 : totalErrors / bucket.length,
+//                                                 ^^^^^^^^^^^^^ should be totalRequests
+```
+
+**What CI does:** exactly one test fails —
+`aggregate.test.ts › summarizeByService › rolls points up per service,
+sorted by volume` — with `expected 1 to be close to 0.005` (2/2 instead of
+2/400). Lint and typecheck **pass**, so the unit test is the sole signal.
+That single unambiguous failure is deliberate: it gives Codesmith a clean
+target and gives you a clean thing to point at.
+
+**Why it's realistic:** a performance refactor that silently changes
+semantics is one of the most common ways real bugs ship. The diff *looks*
+like a mechanical optimisation, the claim "no behaviour change intended" is
+sincere, and a reviewer skimming it would plausibly approve. The bug is also
+the classic rate-vs-average denominator confusion, which is easy to make and
+easy to miss because the resulting number is still a plausible-looking
+small float.
+
+**Autofix mechanics worth knowing:** Codesmith enables autofix by default
+only on PRs **it** created. A PR opened by this workflow therefore sits
+broken until you either click **"Autofix with [code]smith"** on it or enable
+autofix for all PRs in settings. That's the desired shape: a standing broken
+PR you can open cold, plus a live moment to trigger the fix. The docs also
+warn that interdependent autofix PRs can cascade into long sessions, so
+avoid stacking many open scenarios at once — `cleanup` exists for that.
+
+**Unverified:** whether Autofix actually produces a *correct* fix here. It
+should be a tractable target, but don't build a demo around it until you've
+watched it work once.
+
+## 5. What is *not* engineered
 
 Worth being clear on, because the credibility of the above depends on it:
 

@@ -43,12 +43,21 @@ workflows/unmigrated/
   caching) — an honest baseline, not a strawman. See "An honest baseline"
   in the design doc for why the remaining gap to `se-demo-app` is still
   real (hardware, cache backend, runner economics, rightsizing).
+- **`workflows/churn/`** — `ci.yml` for **`se-demo-app-prs`**, the third and
+  deliberately *non*-steady-state repo. It exists to demo the development
+  loop: **`SE: Simulate PR activity`** opens a plausible-looking pull request
+  from `scenarios/*.patch`, CI catches the regression, and `[code]smith`
+  diagnoses and fixes it. Its CI is intentionally lean and fast (low
+  `METRICS_WORKLOAD`, no E2E) because the point is a quick PR feedback loop,
+  not slow-CI pain. Unlike the other two, this repo accumulates real PR and
+  merge history over time — which is what makes it feel like a live project.
 - **`SE: Rebuild demo repos`** pushes `app/` + the matching `workflows/`
   set to each target repo's `main` as one normal commit (no force-push,
   no history wipe) — so Codesmith and test-analytics history keeps
-  accumulating across rebuilds, and the standing migration-wizard PR
-  branch on `se-demo-app-unmigrated` is untouched. Run it only when you
-  deliberately change `app/` or a workflow file.
+  accumulating across rebuilds, and other branches (the standing
+  migration-wizard PR on `se-demo-app-unmigrated`, open scenario PRs on
+  `se-demo-app-prs`) are untouched. Run it only when you deliberately change
+  `app/` or a workflow file.
 - **Root** (this level) is SE-facing only and never reaches customers:
   this README, the runbook, `CLAUDE.md`, and the workflows below.
 
@@ -70,7 +79,8 @@ invariant in `CLAUDE.md`).
 
 | Workflow | What it does |
 | --- | --- |
-| `SE: Rebuild demo repos` | Pushes current `app/` + `workflows/{current,unmigrated}` to `se-demo-app` / `se-demo-app-unmigrated` (`current` / `unmigrated` / `both`). Creates the repo on first use. Normal commit, not a reset. |
+| `SE: Rebuild demo repos` | Pushes current `app/` + the matching `workflows/` overlay to `se-demo-app` / `se-demo-app-unmigrated` / `se-demo-app-prs` (`current` / `unmigrated` / `churn` / `both` / `all`). Creates the repo on first use. Normal commit, not a reset. |
+| `SE: Simulate PR activity` | Opens a scenario PR on `se-demo-app-prs` from `scenarios/*.patch` (or `cleanup` to close them). Hard-scoped to that one repo. This is the PR-loop / Codesmith-autofix demo. |
 | `SE: Generate CI activity` | "Goose it now" button: triggers `ci`/`test`/`docker` via `workflow_dispatch` on a target repo, on top of its own `schedule:` triggers. No commits. |
 | `Validate` | Base-repo CI: fast correctness checks on `app/` and `workflows/` changes, plus a mirror of the demo repos' `stack-smoke` so a broken compose stack fails here rather than at demo time |
 | `SE: SSH sandbox` | No demo purpose — spins up a Blacksmith VM and holds it open (`minutes` input) so you can SSH in and poke around. `workflow_dispatch` only. |
