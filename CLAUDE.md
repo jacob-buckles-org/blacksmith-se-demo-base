@@ -102,6 +102,37 @@ GitHub repo: https://github.com/jacob-buckles-org/blacksmith-se-demo-base
   match exactly across `workflows/current/` and `workflows/unmigrated/` —
   that's what lets you compare the same-named workflow across both repos'
   Actions tabs directly.
+- **Demo material for test analytics / flaky tests / log search / container
+  caching** (added 2026-07-31 — see the arc in `DEMO_RUNBOOK.md`):
+  - Test Analytics needs no Blacksmith-side config: it auto-detects JUnit
+    XML written anywhere on disk during a job. Playwright and Vitest are
+    configured to emit it under `frontend/test-results/` when `CI` is set.
+    Don't add an upload step; there isn't one.
+  - Go tests run with **`-v` in the demo workflows on purpose**. Without
+    it `go test` discards passing packages' output, which loses both the
+    per-test names Blacksmith's log parser needs *and* the SEC-114 warning
+    below. Base-repo `Validate` deliberately stays non-verbose (internal
+    CI, quieter is better there).
+  - `telemetry.FingerprintSweep` logs `WARN telemetry: fingerprint sweep
+    exceeded budget (SEC-114): ...` whenever a sweep exceeds 250ms, which
+    at `METRICS_WORKLOAD: 200` is every run. This exists to give global
+    log search a real, always-present string with a clean "first appeared"
+    boundary. It lives in production code (not a test) so it reads
+    honestly. Keep the `SEC-114` token — the runbook tells you to search
+    for it.
+  - The flaky test is `app/frontend/e2e/chart.spec.ts`, tuned via the
+    single `CHART_RENDER_BUDGET_MS` knob against the undersized 2 vCPU
+    E2E runner. Deliberately **not** tied to the SEC-114 log line: if one
+    root cause fed both the flake and the log-search beat, a day where the
+    flake didn't fire would break both. Keep them independent.
+  - `stack-smoke` uses plain `docker compose` with **no** Blacksmith
+    builder, on purpose: its cost should be dominated by image *pulls*
+    (what container caching addresses), keeping it distinct from the
+    layer-caching story in the image-build jobs. The same job is mirrored
+    in base-repo `Validate` so a broken stack fails here, not at demo time.
+  - Container caching itself is an **org-level feature enabled by filing a
+    Blacksmith support issue** — there is no YAML for it, so don't go
+    looking for a config knob. US West / EU West only.
 - README.md's "workflow pairs" table must be kept in sync with
   `workflows/current/` and `workflows/unmigrated/` — update both in the
   same commit whenever a job's runner size, jobs, or display name changes.

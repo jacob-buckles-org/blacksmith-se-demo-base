@@ -59,7 +59,7 @@ invariant in `CLAUDE.md`).
 | --- | --- | --- |
 | **CI** — lint/typecheck/unit tests | 3-way Node matrix + backend build/vet/unit, all on `blacksmith-4vcpu-ubuntu-2404` | Same jobs on `ubuntu-latest` |
 | **Integration & E2E Tests** — backend Postgres integration + Playwright E2E | Backend integration on `blacksmith-4vcpu`; E2E on `blacksmith-2vcpu` (deliberately undersized — 3 browsers forced parallel, feeds the OOM-flake + Codesmith rightsizing arc) | Same two jobs, both on `ubuntu-latest` |
-| **Docker: Backend & Frontend Images** — image builds, never pushed | 2 jobs: backend/frontend via Blacksmith cache | 2 jobs: backend/frontend via GitHub's `type=gha` cache only |
+| **Docker: Images & Stack Smoke** — image builds (never pushed) + full-stack compose smoke | 3 jobs: backend/frontend images via Blacksmith layer cache, plus `stack-smoke` (plain `docker compose up --build`) | 3 jobs: backend/frontend images via GitHub's `type=gha` cache, plus the same `stack-smoke` |
 
 ## Workflows in this repo
 
@@ -67,7 +67,7 @@ invariant in `CLAUDE.md`).
 | --- | --- |
 | `SE: Rebuild demo repos` | Pushes current `app/` + `workflows/{current,unmigrated}` to `se-demo-app` / `se-demo-app-unmigrated` (`current` / `unmigrated` / `both`). Creates the repo on first use. Normal commit, not a reset. |
 | `SE: Generate CI activity` | "Goose it now" button: triggers `ci`/`test`/`docker` via `workflow_dispatch` on a target repo, on top of its own `schedule:` triggers. No commits. |
-| `Validate` | Base-repo CI: fast correctness checks on `app/` and `workflows/` changes |
+| `Validate` | Base-repo CI: fast correctness checks on `app/` and `workflows/` changes, plus a mirror of the demo repos' `stack-smoke` so a broken compose stack fails here rather than at demo time |
 | `SE: SSH sandbox` | No demo purpose — spins up a Blacksmith VM and holds it open (`minutes` input) so you can SSH in and poke around. `workflow_dispatch` only. |
 
 ## Setup (one-time)
@@ -82,6 +82,11 @@ invariant in `CLAUDE.md`).
 4. Run the Blacksmith migration wizard once against
    `se-demo-app-unmigrated`; leave the generated PR open, draft, unmerged
    — it's the standing onboarding artifact for the demo.
+5. Enable **Docker container caching** for the org by filing a support
+   issue from the Blacksmith dashboard (there's no workflow-side setting).
+   It's what makes the `Initialize Containers` / image-pull comparison in
+   the demo arc land. Available in US West and EU West only — the pool's
+   runners report `us-west`.
 
 ## Keeping both repos looking alive
 

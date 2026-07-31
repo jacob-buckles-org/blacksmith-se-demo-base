@@ -65,25 +65,45 @@ real, defensible gap to `se-demo-app`:
    Blacksmith dashboard: same app, same workload, migrated. Compare
    wall-clock and cost against the unmigrated repo directly — two clean
    Actions tabs, nothing to filter or date-range.
-4. **Test analytics + flaky-test arc (8 min).** *(Validate this arc live
-   before the first real demo — the E2E OOM is a real resource
-   constraint by design, not scripted, but hasn't been observed running
-   for real yet. If it doesn't reproduce reliably, come back and increase
-   memory pressure in the E2E test deliberately.)* On `se-demo-app`:
-   1. Test analytics shows the E2E job's flakiness % and run history.
-   2. Global log search finds the OOM message across the flaky runs
-      instantly.
-   3. Runner utilization metrics confirm memory pegged near the job's
-      ceiling.
-   4. Mention (or do) SSH-into-the-retained-VM debugging on a failed run.
-   5. Apply Codesmith's standing rightsizing recommendation for that job
-      live — the data behind it isn't freshly collected in front of the
-      prospect, so this is low-risk.
-   6. Point at the scheduled run history afterward: the flake stops
-      recurring once rightsized — a visible, causal fix.
+4. **Container caching (3 min).** Open the same
+   `Docker: Images & Stack Smoke` workflow in both repos and compare the
+   **Initialize Containers** step (the `postgres:16` service container in
+   `Integration & E2E Tests`) and the `stack-smoke` job's image pulls.
+   Unmigrated pulls and extracts postgres plus the `golang`/`node` build
+   bases every run; migrated has them already on disk. "Your test
+   dependencies stop being a download." *(Needs the org feature enabled —
+   see Setup in README.)*
+5. **Test analytics + flaky-test arc (8 min).** On `se-demo-app`:
+   1. **Test Analytics** — the Tests tab is populated with no config on
+      your side: JUnit XML from Playwright and Vitest is auto-detected,
+      and Go test output is parsed straight from the logs. Show test
+      names, durations, and pass/fail history across runs.
+   2. **Flaky test** — `request volume chart › plots request and error
+      series for the last 24h` (`e2e/chart.spec.ts`) shows a flakiness %.
+      Open the code: it's an ordinary under-specified wait
+      (`CHART_RENDER_BUDGET_MS`) that loses the race under CPU contention
+      on the deliberately undersized 2 vCPU E2E runner. Nothing scripted —
+      exactly the flake every team already has. Because Playwright retries
+      twice, it usually lands as *flaky-but-green*, which is why nobody
+      would have noticed it without analytics.
+   3. **Runner utilization metrics** confirm CPU pegged on that job.
+   4. **Global log search** — search `SEC-114` (or `exceeded budget`).
+      Every backend test run logs
+      `WARN telemetry: fingerprint sweep exceeded budget (SEC-114): N
+      sessions took Xms, budget 250ms`. Sort to the earliest occurrence:
+      it appears from a specific date forward, which is when the sweep
+      instrumentation shipped. "Find the first time this ever appeared in
+      CI, across every repo, in one query." Deliberately *not* the same
+      root cause as the flaky test, so this beat works even on a day the
+      flake doesn't fire.
+   5. Mention (or do) SSH-into-the-retained-VM debugging on a failed run.
+   6. Apply Codesmith's standing rightsizing recommendation for the E2E
+      job live — the data behind it isn't freshly collected in front of
+      the prospect, so this is low-risk. More CPU → less contention → the
+      chart test stops losing its race.
    7. Mention the single updated PR comment (test failure vs. infra
       flake) and Slack-connected monitors in passing.
-5. **Wrap (5 min).** Dashboard cumulative view: minutes saved, cost delta
+6. **Wrap (5 min).** Dashboard cumulative view: minutes saved, cost delta
    at their scale.
 
 ## What stays genuinely live
