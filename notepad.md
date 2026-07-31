@@ -139,8 +139,10 @@ Fix: `test.describe.configure({ retries: 0 })` on that spec only. Verified
 a real failure then yields `failures="1"` plus a full
 `<failure message="expect(locator).toBeVisible() failed"
 type="expect.toBeVisible">` with error, locator, call log and code frame.
-Consequence: ~1 red run in 8, accepted deliberately — flakiness % now comes
-from cross-run history rather than within-run retries.
+Consequence: accepted deliberately — flakiness % now comes from cross-run
+history rather than within-run retries. Measured rate: 1/8 runs with retries
+on, 1/15 with retries off, i.e. ~9% across 23 runs (~1 red run in 10). The
+confirmed red run is 30657538736 (webkit, `1 failed`, no `retry #` line).
 
 Note the job log *did* always contain the evidence (`✘`, `retry #1`, the
 assertion error, `1 flaky`), so log-parsing could in principle have caught

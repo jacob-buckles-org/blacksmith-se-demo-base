@@ -124,9 +124,14 @@ race is a real failure with a full `<failure>` element. Cost: the run goes
       wait — no `Math.random()`, nothing scripted. That's the point: it's
       the same flake every team already has.
 
-**Expectations:** measured at ~12% of runs before retries were disabled
-(1/8), so expect roughly **1 red run in 8**. It will **not** fail on demand
-— don't plan to trigger it live, point at accumulated history instead.
+**Expectations:** measured 1/8 of runs with retries on and 1/15 with retries
+off — **~9% across 23 runs**, so roughly **1 red run in 10**. It will
+**not** fail on demand; don't plan to trigger it live, point at accumulated
+history instead.
+
+Known red run to inspect (chart spec, webkit, `1 failed`):
+- https://github.com/jacob-buckles-org/se-demo-app/actions/runs/30657538736
+- `app.blacksmith.sh/jacob-buckles-org/runs/30657538736/jobs/91245585416`
 
 - [ ] Want more samples before a demo? Run `SE: Generate CI activity` in the
       base repo (`target: current`) a few times.
