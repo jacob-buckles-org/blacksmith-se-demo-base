@@ -6,7 +6,8 @@ in sync **two permanent, steady-state demo repos** — one shown as-is
 during a call.
 
 **Start here:** [`DEMO_RUNBOOK.md`](DEMO_RUNBOOK.md) — talk track and
-demo arc.
+demo arc. [`VERIFY.md`](VERIFY.md) is the hands-on checklist for
+confirming each demoed feature actually works before you rely on it.
 
 ## How it works
 
