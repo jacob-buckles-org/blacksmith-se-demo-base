@@ -37,14 +37,64 @@ real prospects will ask this.
 
 Could Codesmith guide me through onboarding new features?
 
-E2E OOM-flake reliability is unvalidated live (2026-07-29) — the design
-(3 browser projects forced parallel via `workers: 3` in
-`app/frontend/playwright.config.ts`, on a `blacksmith-2vcpu-ubuntu-2404`
-runner) is a real resource constraint, not scripted, but hasn't actually
-been observed failing yet. Watch the next several scheduled/triggered
-runs. If it doesn't reproduce reliably, next iteration: add a heavier
-in-memory fixture to the E2E test to increase memory pressure
-predictably rather than relying on incidental browser-process overhead.
+~~E2E OOM-flake reliability is unvalidated live (2026-07-29)~~ —
+**abandoned 2026-07-31 in favour of a timing race.** Reasons the OOM
+approach was a bad bet: the runner has 8 GB (`blacksmith-2vcpu-ubuntu-2404`),
+so 3 browsers at ~300-500MB each never got close to the ceiling without a
+large synthetic allocation; the kernel OOM killer's trigger timing and
+victim choice depend on cgroup/kernel details we don't control and that
+can shift under us with no code change; and the failure signature is
+inconsistent (killed worker / "Target closed" / segfault), which weakens
+the "search the logs for the OOM" beat because there's no one greppable
+string.
+
+Replaced by a **timing race** in `app/frontend/e2e/chart.spec.ts`: assert
+the chart is visible within `CHART_RENDER_BUDGET_MS` after `goto`. Reads
+as an ordinary under-specified wait (the most common real-world flake),
+one numeric knob, and it's fixed by *more CPU* — which is exactly what
+Codesmith's rightsizing recommendation offers, so the causal
+"rightsize → flake stops" beat is more direct than it was with memory.
+
+Calibration data, 2026-07-31 (15 samples = 5 runs x 3 browsers, measuring
+goto-return to chart-visible on the 2vCPU runner):
+
+    chromium: 159 165 178 178 191
+    firefox:  216 240 302 525 582
+    webkit:   242 312 467 478 488
+
+Bimodal: chromium is always fast; firefox/webkit split into a fast group
+(216-312ms) and a contended group (467-582ms) depending on how much the
+three browser workers collide that run. There's a clean 155ms gap between
+312 and 467, so the budget is set to **400ms** — inside the gap, where the
+per-attempt failure rate (~33%, i.e. 5/15) is stable against small
+distribution shifts. Sitting at e.g. 500ms would be only 12ms above an
+observed sample and therefore fragile.
+
+**Verified 2026-07-31 over 8 live runs at 400ms: 1/8 runs (12%) recorded a
+flaky test, 0/8 red.** The flake was
+`[webkit] › chart.spec.ts › plots request and error series` — failed once,
+passed on retry, job stayed green. Exactly the intended profile.
+
+Two caveats worth knowing before touching this knob again:
+
+1. **12% is below the 15-30% that was aimed for, and tightening the budget
+   can't fix it.** The measured distribution has a 155ms gap (312→467), so
+   every budget from ~320ms to ~460ms is behaviourally *identical* — same
+   5/15 samples over the line. The next step down (below ~312ms) jumps to
+   7/15 = 47% per attempt, which would start producing genuinely red runs.
+   There's no setting that yields a modest increase; it's ~12% or ~47%.
+   400ms sits mid-gap, which is why it's stable.
+2. The verification runs came out **faster** than the calibration runs
+   (per-attempt ~4% vs the 33% the calibration sample implied), i.e.
+   host-level contention varies enough between bursts that 15 samples
+   wasn't sufficient to pin the rate. Treat any single measurement as
+   ±10pp. Re-read the true rate off accumulated scheduled history rather
+   than another burst.
+
+If a higher flakiness % is wanted later, the better lever is more render
+work (a larger mocked payload / more services shifts the whole
+distribution later and widens it) rather than a tighter timeout, which
+just falls off the bimodal cliff.
 
 `frontend-checks` was normalized from `blacksmith-8vcpu` down to the fair
 `blacksmith-4vcpu-ubuntu-2404` baseline on 2026-07-29 (was deliberately
