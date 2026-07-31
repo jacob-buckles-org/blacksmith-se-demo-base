@@ -125,6 +125,16 @@ GitHub repo: https://github.com/jacob-buckles-org/blacksmith-se-demo-base
     E2E runner. Deliberately **not** tied to the SEC-114 log line: if one
     root cause fed both the flake and the log-search beat, a day where the
     flake didn't fire would break both. Keep them independent.
+  - That spec sets `test.describe.configure({ retries: 0 })` and **it must
+    stay that way.** Playwright's JUnit reporter records only a test's
+    *final* status, so with retries on, a fail-then-pass is written as
+    `failures="0"` with no `<failure>` element — anything consuming the XML
+    (i.e. Test Analytics) sees a clean pass and the flake is invisible.
+    Verified empirically 2026-07-31 with a probe that fails once then
+    passes. With retries off you get `failures="1"` and a full `<failure>`
+    element. The tradeoff — ~1 red run in 8 — is accepted on purpose;
+    don't "fix" the red runs by re-enabling retries, that silently breaks
+    the whole flaky-test demo.
   - `stack-smoke` uses plain `docker compose` with **no** Blacksmith
     builder, on purpose: its cost should be dominated by image *pulls*
     (what container caching addresses), keeping it distinct from the

@@ -118,6 +118,35 @@ work (a larger mocked payload / more services shifts the whole
 distribution later and widens it) rather than a tighter timeout, which
 just falls off the bimodal cliff.
 
+**Retries disabled 2026-07-31 — the "flaky-but-green" idea did not work.**
+Jacob noticed there were no signs of test failures anywhere, which turned
+out to be a real gap, not just bad luck. Playwright's JUnit reporter writes
+only a test's **final** status. Probed it directly with a test that fails
+attempt 0 and passes on retry:
+
+    <testsuites tests="1" failures="0" ...>
+      <testcase name="probe: fails first attempt, passes on retry" time="0">
+        <system-out>[[ATTACHMENT|...retry1/trace.zip]]</system-out>
+      </testcase>
+
+`failures="0"`, no `<failure>` element — the only residue is an attachment
+filename. So anything reading the XML (i.e. Test Analytics) saw a clean
+pass, and the whole flaky-test demo had nothing to show. The earlier
+reasoning that "retries give us flaky-but-green, best of both worlds"
+assumed the retry would be *recorded*; it isn't.
+
+Fix: `test.describe.configure({ retries: 0 })` on that spec only. Verified
+a real failure then yields `failures="1"` plus a full
+`<failure message="expect(locator).toBeVisible() failed"
+type="expect.toBeVisible">` with error, locator, call log and code frame.
+Consequence: ~1 red run in 8, accepted deliberately — flakiness % now comes
+from cross-run history rather than within-run retries.
+
+Note the job log *did* always contain the evidence (`✘`, `retry #1`, the
+assertion error, `1 flaky`), so log-parsing could in principle have caught
+it — but that was never confirmed and depending on it was fragile. JUnit is
+the documented path, so make JUnit correct.
+
 `frontend-checks` was normalized from `blacksmith-8vcpu` down to the fair
 `blacksmith-4vcpu-ubuntu-2404` baseline on 2026-07-29 (was deliberately
 oversized to manufacture a "scale down" Codesmith rec — Jacob's call:

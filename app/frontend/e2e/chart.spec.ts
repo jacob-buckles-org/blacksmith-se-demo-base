@@ -19,6 +19,12 @@ const dayOfMetrics = services.flatMap((service, s) =>
 )
 
 test.describe('request volume chart', () => {
+  // No retries here. These are render-timing assertions, and retrying them
+  // just papers over the regression they exist to catch: a retry runs against
+  // a warm browser and a warm bundle cache, so it almost always passes and
+  // the signal is lost. Fail loudly instead.
+  test.describe.configure({ retries: 0 })
+
   test.beforeEach(async ({ page }) => {
     await page.route('**/api/metrics', (route) => route.fulfill({ json: dayOfMetrics }))
   })

@@ -81,13 +81,15 @@ real, defensible gap to `se-demo-app`:
       and Go test output is parsed straight from the logs. Show test
       names, durations, and pass/fail history across runs.
    2. **Flaky test** — `request volume chart › plots request and error
-      series for the last 24h` (`e2e/chart.spec.ts`) shows a flakiness %.
-      Open the code: it's an ordinary under-specified wait
+      series for the last 24h` (`e2e/chart.spec.ts`) shows a flakiness %
+      built from cross-run history: it fails in roughly 1 run in 8 and
+      passes the rest. Open the code: it's an ordinary under-specified wait
       (`CHART_RENDER_BUDGET_MS`) that loses the race under CPU contention
       on the deliberately undersized 2 vCPU E2E runner. Nothing scripted —
-      exactly the flake every team already has. Because Playwright retries
-      twice, it usually lands as *flaky-but-green*, which is why nobody
-      would have noticed it without analytics.
+      exactly the flake every team already has. The point to land: the
+      failure is *intermittent and unrelated to the change under test*,
+      which is why it survives in a real codebase — someone re-runs CI, it
+      goes green, nobody investigates.
    3. **Runner utilization metrics** confirm CPU pegged on that job.
    4. **Global log search** — search `SEC-114` (or `exceeded budget`).
       Every backend test run logs

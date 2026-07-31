@@ -105,30 +105,31 @@ It asserts the chart renders within `CHART_RENDER_BUDGET_MS` (400ms) and
 loses that race under CPU contention on the deliberately undersized
 2 vCPU E2E runner. **webkit** is the usual victim.
 
-- [ ] In the dashboard, find that test and confirm a **non-zero flakiness %**
-  ```
-  with run history.
-  ```
-- [ ] Open the code in the repo and confirm it reads like an ordinary
-  ```
-  under-specified wait — no `Math.random()`, nothing scripted. This is
-  the point: it's the same flake every team already has.
-  ```
-- [ ] Confirm the job is **green** despite the flake. Playwright retries
-  ```
-  twice with warm caches, so a failure normally becomes
-  *flaky-but-green* — which is exactly why nobody notices it without
-  analytics.
-  ```
+**Retries are disabled for this spec on purpose** (`test.describe.configure({
+retries: 0 })`). Originally it kept Playwright's 2 retries so the job stayed
+green while still being recorded as flaky — but that turned out not to work:
+Playwright's JUnit reporter writes only the **final** status, so a
+fail-then-pass came out as `failures="0"` with no `<failure>` element at
+all, and anything reading the XML saw a clean pass. With retries off, a lost
+race is a real failure with a full `<failure>` element. Cost: the run goes
+**red**, which is now intended.
 
-**Expectations, measured over 8 live runs:** 1/8 runs (12%) recorded the
-flake, 0/8 went red. So **it will not flake on demand** — do not plan to
-trigger it live. Point at accumulated history instead.
+- [ ] Find a **red** `Integration & E2E Tests` run and confirm the failed
+      test is visible in the dashboard's Tests tab, with the assertion error
+      (`expect(locator).toBeVisible() failed`).
+- [ ] Confirm a **non-zero flakiness %** for that test — it comes from
+      cross-run history (fails some runs, passes others), not from
+      within-run retries.
+- [ ] Open the code and confirm it reads like an ordinary under-specified
+      wait — no `Math.random()`, nothing scripted. That's the point: it's
+      the same flake every team already has.
 
-- [ ] Want more samples before a demo? Run `SE: Generate CI activity`
-  ```
-  in the base repo (`target: current`) a few times.
-  ```
+**Expectations:** measured at ~12% of runs before retries were disabled
+(1/8), so expect roughly **1 red run in 8**. It will **not** fail on demand
+— don't plan to trigger it live, point at accumulated history instead.
+
+- [ ] Want more samples before a demo? Run `SE: Generate CI activity` in the
+      base repo (`target: current`) a few times.
 
 If flakiness reads 0%, the history window may predate the test (added
 2026-07-31). Trigger several runs and re-check. Before retuning the 400ms
