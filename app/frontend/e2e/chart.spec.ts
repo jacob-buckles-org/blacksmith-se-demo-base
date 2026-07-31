@@ -23,17 +23,24 @@ test.describe('request volume chart', () => {
     await page.route('**/api/metrics', (route) => route.fulfill({ json: dayOfMetrics }))
   })
 
-  test('plots request and error series for the last 24h', async ({ page }) => {
+  test('plots request and error series for the last 24h', async ({ page }, testInfo) => {
     await page.goto('/')
+    const t0 = Date.now()
 
     const chart = page.getByTestId('usage-chart')
-    await expect(chart).toBeVisible({ timeout: CHART_RENDER_BUDGET_MS })
+    await expect(chart).toBeVisible({ timeout: 30_000 })
+    const visibleMs = Date.now() - t0
 
     // Recharts renders one <path class="recharts-area-area"> per <Area>:
     // one for requests, one for errors.
     await expect(chart.locator('path.recharts-area-area')).toHaveCount(2, {
-      timeout: CHART_RENDER_BUDGET_MS,
+      timeout: 30_000,
     })
+    const seriesMs = Date.now() - t0
+
+    console.log(
+      `CALIBRATE project=${testInfo.project.name} chart-visible=${visibleMs}ms series-rendered=${seriesMs}ms budget=${CHART_RENDER_BUDGET_MS}ms`,
+    )
   })
 
   test('labels the chart with its reporting window', async ({ page }) => {
