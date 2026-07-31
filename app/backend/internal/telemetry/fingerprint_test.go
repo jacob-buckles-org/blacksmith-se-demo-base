@@ -46,12 +46,18 @@ func TestFingerprintSweepNoCollisions(t *testing.T) {
 		batch = 1
 	}
 
-	seen := make(map[string]struct{}, batch)
+	tokens := make([]string, 0, batch)
 	for i := 0; i < batch; i++ {
-		fp, err := FingerprintSession(fmt.Sprintf("sess-%d-%d", i, i*2654435761), "tenant-sweep", 60_000)
-		if err != nil {
-			t.Fatal(err)
-		}
+		tokens = append(tokens, fmt.Sprintf("sess-%d-%d", i, i*2654435761))
+	}
+
+	fingerprints, err := FingerprintSweep(tokens, "tenant-sweep", 60_000)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	seen := make(map[string]struct{}, len(fingerprints))
+	for _, fp := range fingerprints {
 		if _, dup := seen[fp]; dup {
 			t.Fatalf("fingerprint collision in %d-session sweep", batch)
 		}

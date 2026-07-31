@@ -18,5 +18,8 @@ export default defineConfig({
     environment: 'jsdom',
     include: ['src/**/*.test.{ts,tsx}'],
     testTimeout: 600_000,
+    // JUnit XML written to disk is picked up automatically by CI test reporting.
+    reporters: process.env.CI ? ['default', 'junit'] : ['default'],
+    outputFile: { junit: 'test-results/junit-unit.xml' },
   },
 })

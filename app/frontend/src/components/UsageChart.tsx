@@ -17,7 +17,7 @@ interface HourBucket {
 
 export function UsageChart({ data }: { data: HourBucket[] }) {
   return (
-    <Card variant="outlined" sx={{ mb: 3 }}>
+    <Card variant="outlined" sx={{ mb: 3 }} data-testid="usage-chart">
       <CardContent>
         <Typography variant="subtitle1" gutterBottom>
           Request volume by hour

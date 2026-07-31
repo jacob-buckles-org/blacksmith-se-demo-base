@@ -109,3 +109,37 @@ jobs:
           for f in workflows/current/*.yml workflows/unmigrated/*.yml; do
             python3 -c "import yaml,sys; yaml.safe_load(open(sys.argv[1]))" "$f" && echo "ok: $f"
           done
+
+  # Mirrors the stack-smoke job both demo repos run. Kept here so a change to
+  # app/ that breaks the compose stack fails in this repo, not at demo time.
+  # Note the -f: in demo repos the compose file sits at the root, here it's
+  # under app/.
+  stack-smoke:
+    name: Full-stack smoke (docker compose)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Bring up the stack
+        run: docker compose -f app/docker-compose.yml up -d --build
+
+      - name: Smoke-test the API
+        run: |
+          curl -fsS --retry 30 --retry-delay 2 --retry-all-errors \
+            http://localhost:8080/healthz
+          curl -fsS http://localhost:8080/api/metrics | head -c 200
+          echo
+
+      - name: Smoke-test the dashboard
+        run: |
+          curl -fsS --retry 30 --retry-delay 2 --retry-all-errors \
+            http://localhost:4173/ -o /dev/null
+
+      - name: Stack logs
+        if: failure()
+        run: docker compose -f app/docker-compose.yml logs --no-color
+
+      - name: Tear down
+        if: always()
+        run: docker compose -f app/docker-compose.yml down -v
