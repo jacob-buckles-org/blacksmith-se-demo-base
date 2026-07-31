@@ -109,7 +109,11 @@ real, defensible gap to `se-demo-app`:
 ## What stays genuinely live
 
 - **SSH-into-runner debugging** — inherently in-the-moment; quick and
-  reliable, no steady state needed.
+  reliable, no steady state needed. One caveat learned the hard way: a
+  GitHub SSH key added the *same day* may not be honoured yet (there's an
+  undocumented propagation delay — observed still failing 28 min after
+  adding a key, working the next day). Use a key that's been on your
+  account a while, and don't debug a fresh key mid-call.
 - **Applying the Codesmith recommendation** — the recommendation
   pre-exists (fed by scheduled history), but clicking apply live is a
   good, low-risk flourish.
