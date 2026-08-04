@@ -1,6 +1,6 @@
 name: "SE: Simulate PR activity"
 
-# Opens a scenario pull request against se-demo-app-prs so you can demo the
+# Opens a scenario pull request against se-demo-app so you can demo the
 # development loop: a plausible-looking PR lands, CI catches a regression,
 # and [code]smith diagnoses and fixes it.
 #
@@ -17,9 +17,16 @@ name: "SE: Simulate PR activity"
 # settings. That's deliberate — it gives you a standing broken PR to open
 # cold plus a live moment to trigger the fix.
 #
+# Merging is optional. Merge when you want the repo to accumulate real
+# history; close the PR instead when you'd rather main stayed on the
+# canonical app/. If you do merge, main then contains the fix and the patch
+# stops applying — reset it with "SE: Rebuild demo repos" (target: current).
+# See DEMO_MECHANICS.md §4.2.
+#
 # SAFETY: this workflow mutates branches and PRs, so it is hard-scoped to
-# se-demo-app-prs and refuses to run anywhere else. The two steady-state
-# demo repos must never be a target.
+# se-demo-app and refuses to run anywhere else. In particular it must never
+# target se-demo-app-unmigrated, whose standing migration-wizard PR is the
+# whole point of that repo.
 #
 # Requires org secret DEMO_PROVISION_TOKEN (repo + workflow scopes).
 
@@ -40,7 +47,7 @@ on:
 
 env:
   # Hard-coded, not an input. See SAFETY above.
-  TARGET_REPO: jacob-buckles-org/se-demo-app-prs
+  TARGET_REPO: jacob-buckles-org/se-demo-app
   BRANCH_PREFIX: scenario
   GH_TOKEN: ${{ secrets.DEMO_PROVISION_TOKEN }}
 
@@ -54,15 +61,13 @@ jobs:
       - name: Guard the target
         run: |
           set -euo pipefail
-          case "$TARGET_REPO" in
-            */se-demo-app-prs) ;;
-            *)
-              echo "::error::refusing to run against '$TARGET_REPO' — this workflow may only target se-demo-app-prs"
-              exit 1
-              ;;
-          esac
+          # Exact match, not a glob: se-demo-app-unmigrated must never match.
+          if [ "$TARGET_REPO" != "jacob-buckles-org/se-demo-app" ]; then
+            echo "::error::refusing to run against '$TARGET_REPO' — this workflow may only target jacob-buckles-org/se-demo-app"
+            exit 1
+          fi
           if ! gh repo view "$TARGET_REPO" >/dev/null 2>&1; then
-            echo "::error::$TARGET_REPO does not exist — run 'SE: Rebuild demo repos' with target 'churn' first"
+            echo "::error::$TARGET_REPO does not exist — run 'SE: Rebuild demo repos' with target 'current' first"
             exit 1
           fi
 
@@ -113,7 +118,7 @@ jobs:
           if ! git am -p2 "$PATCH"; then
             git am --abort || true
             echo "::error::scenarios/${{ inputs.scenario }}.patch does not apply to ${TARGET_REPO}'s main."
-            echo "::notice::Most likely cause: a previous run of this scenario was merged, so main already contains the fix. Run 'SE: Rebuild demo repos' with target 'churn' to reset main to the canonical app/, then retry. (If app/ genuinely changed, regenerate the patch — see DEMO_MECHANICS.md.)"
+            echo "::notice::Most likely cause: a previous run of this scenario was merged, so main already contains the fix. Run 'SE: Rebuild demo repos' with target 'current' to reset main to the canonical app/, then retry. (If app/ genuinely changed, regenerate the patch — see DEMO_MECHANICS.md.)"
             exit 1
           fi
 
@@ -130,7 +135,13 @@ jobs:
             echo "- **${TITLE}**"
             echo "- ${URL}"
             echo
-            echo "CI should go red on \`Frontend / Unit tests\`. To demo the fix, open the PR"
-            echo "and click **Autofix with [code]smith** — autofix is not automatic on PRs"
-            echo "[code]smith did not create itself."
+            echo "CI should go red on the \`Frontend\` job's **Unit tests** step (all three"
+            echo "Node legs). The E2E job is skipped on pull requests, so the deliberately"
+            echo "flaky chart spec can't muddy this run."
+            echo
+            echo "To demo the fix, open the PR and click **Autofix with [code]smith** —"
+            echo "autofix is not automatic on PRs [code]smith did not create itself."
+            echo
+            echo "Merging is optional; if you do merge, reset main afterwards with"
+            echo "**SE: Rebuild demo repos** (target \`current\`)."
           } >> "$GITHUB_STEP_SUMMARY"

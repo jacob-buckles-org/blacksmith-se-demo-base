@@ -5,18 +5,17 @@ name: "SE: Rebuild demo repos"
 #
 #   app/ + workflows/current/    -> se-demo-app             (migrated)
 #   app/ + workflows/unmigrated/ -> se-demo-app-unmigrated   (before state)
-#   app/ + workflows/churn/      -> se-demo-app-prs          (PR-loop demo)
 #
-# The first two are steady state — nothing resets them, nothing force-pushes.
-# se-demo-app-prs is the deliberate exception: it accumulates real PR and
-# merge history over time (see "SE: Simulate PR activity"). Rebuilding it
-# only touches main, so open scenario PRs survive.
-# Each run clones the target's current main, replaces its tracked content
-# with app/ (at repo root) + the matching workflows/ set (under
-# .github/workflows/), and pushes a single normal commit. That preserves
-# each repo's Actions run history (Codesmith and test analytics both need
-# accumulated history) and leaves any other branch — notably the standing
-# migration-wizard PR branch on se-demo-app-unmigrated — untouched.
+# Neither repo resets and nothing force-pushes. Each run clones the target's
+# current main, replaces its tracked content with app/ (at repo root) + the
+# matching workflows/ set (under .github/workflows/), and pushes a single
+# normal commit. That preserves Actions run history — Codesmith and test
+# analytics both need it accumulated — and leaves every other branch alone:
+# the standing migration-wizard PR on se-demo-app-unmigrated, and any open
+# scenario PR on se-demo-app (see "SE: Simulate PR activity").
+#
+# Rebuilding se-demo-app is also how you reset main back to the canonical
+# app/ after merging a scenario PR, which is what keeps scenarios replayable.
 #
 # Run this only when you deliberately change app/ or a workflow file, not
 # per-demo. Creates the target repo(s) as PUBLIC on first use — public
@@ -33,7 +32,7 @@ on:
       target:
         description: "Which repo(s) to rebuild"
         type: choice
-        options: [current, unmigrated, churn, both, all]
+        options: [current, unmigrated, both]
         default: both
 
 env:
@@ -56,9 +55,7 @@ jobs:
           case "${{ inputs.target }}" in
             current)    KEYS="current" ;;
             unmigrated) KEYS="unmigrated" ;;
-            churn)      KEYS="churn" ;;
             both)       KEYS="current unmigrated" ;;
-            all)        KEYS="current unmigrated churn" ;;
             *) echo "::error::unknown target '${{ inputs.target }}'"; exit 1 ;;
           esac
 
@@ -73,10 +70,6 @@ jobs:
               unmigrated)
                 NAME="se-demo-app-unmigrated"
                 DESC="Usage Analytics — service metrics dashboard"
-                ;;
-              churn)
-                NAME="se-demo-app-prs"
-                DESC="Usage Analytics — service metrics dashboard (active development)"
                 ;;
             esac
             REPO="${TARGET_ORG}/${NAME}"

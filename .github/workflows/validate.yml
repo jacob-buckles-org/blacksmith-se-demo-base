@@ -110,7 +110,7 @@ jobs:
             python3 -c "import yaml,sys; yaml.safe_load(open(sys.argv[1]))" "$f" && echo "ok: $f"
           done
 
-  # Scenario patches are applied to se-demo-app-prs by "SE: Simulate PR
+  # Scenario patches are applied to se-demo-app by "SE: Simulate PR
   # activity". An app/ change can silently stop one applying, which would
   # only surface when you try to open the PR — mid-demo-prep at the worst.
   # Catch it here instead.

@@ -110,7 +110,8 @@ Details that make it hold up under scrutiny:
 - **It's browser-specific.** "It only fails on Safari, only in CI" is a
   sentence every frontend team has said out loud.
 - **It's load-dependent, not deterministic**, which is precisely why it
-  survives: it passes on the retry, so it never looks like a real bug.
+  survives: it passes as soon as someone re-runs the job, so it never looks
+  like a real bug worth filing.
 
 ### 1.3 If a prospect challenges you
 
@@ -230,10 +231,10 @@ jobs** — any Codesmith recommendation should be organic.
 
 ---
 
-## 4. Scenario PRs (`se-demo-app-prs`)
+## 4. Scenario PRs (`se-demo-app`)
 
 **Where:** `scenarios/NN-<name>.patch`, opened by
-`SE: Simulate PR activity` against `se-demo-app-prs`.
+`SE: Simulate PR activity` against `se-demo-app`.
 
 Each scenario is a single-commit `git format-patch` touching `app/` paths.
 The commit **subject becomes the PR title and the body becomes the PR
@@ -312,7 +313,7 @@ the patch expects: three reduce() calls                      ← canonical app/
 → git am fails
 ```
 
-**The reset is `SE: Rebuild demo repos` with `target: churn`.** It pushes the
+**The reset is `SE: Rebuild demo repos` with `target: current`.** It pushes the
 canonical `app/` back over main as an ordinary commit, so the patch applies
 again. Verified end to end: patch failed against the post-merge main, then
 applied cleanly after a rebuild.
@@ -321,11 +322,11 @@ Crucially the rebuild **only replaces content on main — it does not rewrite
 history**. After the reset, the log still reads:
 
 ```
-Sync from blacksmith-se-demo-base (churn)     ← the reset
+Sync from blacksmith-se-demo-base (current)   ← the reset
 Merge pull request #1 from …scenario/01-…      ← your merge, preserved
 fix(aggregate): restore totalRequests …        ← Codesmith's fix, preserved
 perf(aggregate): roll up service metrics …     ← the scenario PR
-Sync from blacksmith-se-demo-base (churn)
+Sync from blacksmith-se-demo-base (current)
 ```
 
 So every demo run leaves a permanent, real-looking merged-PR trail while the
@@ -338,41 +339,51 @@ the opposite of the other two.
    never collides with previous runs).
 2. Demo: CI goes red → click **Autofix with [code]smith** → merge if you want
    the history.
-3. Only if you merged: `SE: Rebuild demo repos` → `target: churn` to reset
+3. Only if you merged: `SE: Rebuild demo repos` → `target: current` to reset
    main. Skip it if you closed the PR instead.
 
 `cleanup` closes any open scenario PRs and deletes their branches — worth
 running if several are stacked, since the docs warn interdependent autofix
 PRs can cascade into long sessions.
 
-### 4.3 Why this isn't just done in `se-demo-app`
+### 4.3 Why scenario PRs live in `se-demo-app` (and not a third repo)
 
-Reasonable question, and worth writing down because it'll come up again. Four
-reasons, roughly in order of how much they'd actually hurt:
+This was first built as a dedicated third repo, `se-demo-app-prs`, then
+**consolidated into `se-demo-app` and the third repo deleted on 2026-08-04.**
+Worth recording, because the argument turned on one premise that changed.
 
-1. **`se-demo-app` and `se-demo-app-unmigrated` must stay content-identical.**
-   The entire before/after comparison rests on "same app, same workload, only
-   the CI config differs." Merging PRs into one and not the other makes them
-   diverge, and the comparison stops being honest. This is the reason that
-   really settles it.
-2. **The deliberately flaky E2E test would poison the loop.** It reddens ~9%
-   of runs for reasons unrelated to the change under review — and with
-   autofix enabled, Codesmith could go off and "fix" the flaky test instead
-   of the regression. Actively harmful to the demo you're trying to run.
-3. **`se-demo-app`'s CI is deliberately slow** (`METRICS_WORKLOAD: 200`,
-   3-browser E2E matrix, ~6-7 min). A PR/autofix loop wants fast feedback;
-   the churn repo does the whole PR run in **52s**.
-4. **Churn breaks the steady-state guarantee.** The value of those two repos
-   is that they're always exactly what you expect when you open them cold.
-   A stream of merged PRs and periodic main resets is the opposite.
+The original case for isolating it rested on **keeping `se-demo-app` and
+`se-demo-app-unmigrated` content-identical**, so that a before/after
+performance comparison between them stayed honest — merging PRs into one and
+not the other breaks that. Per Jacob, though, that comparison isn't
+valuable: `se-demo-app-unmigrated` exists to show the **migration wizard
+UI**, full stop. With the premise gone, the strongest reason went with it,
+and three repos wasn't worth the complexity.
 
-**The narrow version that *would* work in `se-demo-app`:** open a scenario
-PR and always **close** it rather than merging. Main never changes, so
-divergence and resets both go away. You'd still inherit the slow CI and the
-flaky test (1 and 4 solved, 2 and 3 not). Worth knowing as a fallback if you
-ever need to demo autofix against the migrated repo specifically — but note
-that *merging* is what makes the history realistic, and merging is precisely
-what you can't safely do there.
+The remaining objections turned out to be weaker than they first looked:
+
+- **The flaky E2E test poisoning PRs** — real, but solved outright by
+  `if: github.event_name != 'pull_request'` on the `e2e` job. The flake's
+  demo purpose is *accumulated history* in Test Analytics, which comes from
+  push and scheduled runs; it never needed to run on PRs. Skipping E2E on
+  PRs is also ordinary practice, so it costs no realism.
+- **Slow CI** (`METRICS_WORKLOAD: 200`) — the dedicated repo did a PR run in
+  52s versus a few minutes here. But the standing-broken-PR model means CI
+  is already red when you open it, so you rarely wait live. Only bites if
+  you want to watch autofix → green in real time.
+- **Churn breaking steady state** — a genuine preference rather than a
+  correctness issue, and closing PRs instead of merging avoids it entirely.
+
+**One thing consolidation did *not* buy:** the reset step. Merging a scenario
+into `se-demo-app` drifts its main from canonical `app/` exactly as it did in
+the third repo, so `SE: Rebuild demo repos` afterwards is still required.
+That complexity moved rather than disappeared. What consolidation removed was
+a repo, an overlay, a rebuild target, and a set of dashboard entries.
+
+**If you ever want the isolation back**, the thing to re-establish first is a
+reason that doesn't depend on content parity — e.g. wanting genuinely fast PR
+CI for live autofix demos, or wanting `se-demo-app` pristine for a different
+reason. Don't rebuild it just because it was there before.
 
 ## 5. What is *not* engineered
 

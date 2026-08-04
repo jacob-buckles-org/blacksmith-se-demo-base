@@ -29,30 +29,34 @@ GitHub repo: https://github.com/jacob-buckles-org/blacksmith-se-demo-base
 - **`se-demo-app`** and **`se-demo-app-unmigrated`** are permanent,
   steady-state repos — not a pool, nothing resets. Each is always exactly
   what a prospect should see when you open it.
-- **`se-demo-app-prs`** (overlay `workflows/churn/`) is the deliberate
-  exception to steady state: it exists to demo the PR loop (regression
-  caught by CI → `[code]smith` autofix) and accumulates real PR/merge
-  history over time. The steady-state invariant is **per-repo**, not
-  global — don't "fix" this repo's churn to match the other two.
-  `SE: Simulate PR activity` opens scenario PRs there from
-  `scenarios/*.patch`; that workflow is **hard-scoped to
-  `se-demo-app-prs`** and must stay that way, since it's the only root
-  workflow that mutates branches and PRs.
-- Its CI is intentionally lean: low `METRICS_WORKLOAD` for a fast PR
-  feedback loop, and **no E2E job** — the shared `app/` carries the
-  deliberately flaky chart spec, which would redden PRs for reasons
-  unrelated to the change under review and could send autofix chasing a
-  flake instead of the regression. Don't add E2E to `workflows/churn/`
-  without solving that.
-- **Merged scenario PRs are never reverted.** After a merge, main contains
-  the fix so the scenario patch stops applying; the reset is
-  `SE: Rebuild demo repos` with `target: churn`, which replaces main's
+- **Scenario PRs land on `se-demo-app`.** `SE: Simulate PR activity` opens
+  them from `scenarios/*.patch` to demo the PR loop (regression caught by
+  CI → `[code]smith` autofix). That workflow is **hard-scoped to
+  `se-demo-app` by exact string match** and must stay that way: it's the
+  only root workflow that mutates branches and PRs, and it must never touch
+  `se-demo-app-unmigrated`, whose standing wizard PR is that repo's whole
+  purpose.
+- The `e2e` job in `workflows/current/test.yml` carries
+  `if: github.event_name != 'pull_request'`. **This is load-bearing** — the
+  deliberately flaky chart spec would otherwise redden scenario PRs for
+  reasons unrelated to the change under review, and could send autofix
+  chasing a flake instead of the regression. Flakiness history still
+  accumulates from push and scheduled runs, which is where Test Analytics
+  gets it from anyway.
+- **Merged scenario PRs are never reverted.** After a merge, `se-demo-app`'s
+  main contains the fix so the scenario patch stops applying; the reset is
+  `SE: Rebuild demo repos` with `target: current`, which replaces main's
   content without rewriting history (the merge commits stay). Verified
-  2026-08-04. Full cycle in `DEMO_MECHANICS.md` §4.2.
-- **Don't consolidate this into `se-demo-app`** — that was considered and
-  rejected: `se-demo-app` and `se-demo-app-unmigrated` must stay
-  content-identical for the before/after comparison to be honest, and
-  merging PRs into one breaks that. Reasoning in `DEMO_MECHANICS.md` §4.3.
+  2026-08-04. Full cycle in `DEMO_MECHANICS.md` §4.2. Closing the PR instead
+  of merging avoids the drift and the reset entirely.
+- **A third repo (`se-demo-app-prs`) was built for this and then retired**
+  on 2026-08-04. It was isolated and fast (52s PR CI), but the justification
+  rested on keeping `se-demo-app` and `se-demo-app-unmigrated`
+  content-identical for a before/after performance comparison — and per
+  Jacob, that comparison isn't valuable: `se-demo-app-unmigrated` exists to
+  show the **migration wizard UI**, nothing more. With that premise gone,
+  three repos wasn't worth the complexity. Don't reintroduce it without a
+  new reason. Reasoning in `DEMO_MECHANICS.md` §4.3.
 - **`SE: Rebuild demo repos`** (`target`: current/unmigrated/both)
   redistributes the CURRENT `app/` + matching `workflows/` set to each
   target's `main` as one normal commit — no force-push, no history wipe.

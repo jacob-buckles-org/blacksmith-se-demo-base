@@ -49,8 +49,13 @@ jobs:
         run: go test -count=1 -v -tags integration ./internal/store/
 
 
+  # Runs on main and on the nightly schedule, but not on pull requests: the
+  # browser matrix is the slowest thing in CI and it's the wrong signal on a
+  # PR, where you want a fast answer about the change itself. Reviewers get
+  # the E2E result from the post-merge run.
   e2e:
     name: Dashboard E2E (Playwright)
+    if: github.event_name != 'pull_request'
     runs-on: blacksmith-2vcpu-ubuntu-2404
     defaults:
       run:

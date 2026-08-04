@@ -34,7 +34,7 @@ workflows/unmigrated/
   (runner migration, dependency-cache acceleration, Blacksmith docker
   layer caching) baked in by hand, and one deliberately undersized job
   (E2E) that feeds a standing Codesmith rightsizing recommendation and an
-  intermittent OOM flake. Every other job sits at the same
+  intermittent render-timing flake. Every other job sits at the same
   `blacksmith-4vcpu-ubuntu-2404` fair baseline that maps to
   `ubuntu-latest` — no artificially oversized jobs.
 - **`workflows/unmigrated/`** — the same three workflows for
@@ -43,21 +43,20 @@ workflows/unmigrated/
   caching) — an honest baseline, not a strawman. See "An honest baseline"
   in the design doc for why the remaining gap to `se-demo-app` is still
   real (hardware, cache backend, runner economics, rightsizing).
-- **`workflows/churn/`** — `ci.yml` for **`se-demo-app-prs`**, the third and
-  deliberately *non*-steady-state repo. It exists to demo the development
-  loop: **`SE: Simulate PR activity`** opens a plausible-looking pull request
-  from `scenarios/*.patch`, CI catches the regression, and `[code]smith`
-  diagnoses and fixes it. Its CI is intentionally lean and fast (low
-  `METRICS_WORKLOAD`, no E2E) because the point is a quick PR feedback loop,
-  not slow-CI pain. Unlike the other two, this repo accumulates real PR and
-  merge history over time — which is what makes it feel like a live project.
+- **`scenarios/NN-<name>.patch`** — plausible-looking code changes that
+  **`SE: Simulate PR activity`** opens as pull requests against `se-demo-app`,
+  so you can demo the development loop: a PR lands, CI catches the
+  regression, and `[code]smith` diagnoses and fixes it. Merge them when you
+  want the repo to accumulate real history, or close them to leave `main`
+  on the canonical `app/`. Details in `DEMO_MECHANICS.md`.
 - **`SE: Rebuild demo repos`** pushes `app/` + the matching `workflows/`
   set to each target repo's `main` as one normal commit (no force-push,
   no history wipe) — so Codesmith and test-analytics history keeps
   accumulating across rebuilds, and other branches (the standing
   migration-wizard PR on `se-demo-app-unmigrated`, open scenario PRs on
-  `se-demo-app-prs`) are untouched. Run it only when you deliberately change
-  `app/` or a workflow file.
+  `se-demo-app`) are untouched. Run it when you
+  deliberately change `app/` or a workflow file — and to reset `se-demo-app`'s
+  `main` after merging a scenario PR.
 - **Root** (this level) is SE-facing only and never reaches customers:
   this README, the runbook, `CLAUDE.md`, and the workflows below.
 
@@ -72,15 +71,15 @@ invariant in `CLAUDE.md`).
 | Pair | `se-demo-app` (current) | `se-demo-app-unmigrated` |
 | --- | --- | --- |
 | **CI** — lint/typecheck/unit tests | 3-way Node matrix + backend build/vet/unit, all on `blacksmith-4vcpu-ubuntu-2404` | Same jobs on `ubuntu-latest` |
-| **Integration & E2E Tests** — backend Postgres integration + Playwright E2E | Backend integration on `blacksmith-4vcpu`; E2E on `blacksmith-2vcpu` (deliberately undersized — 3 browsers forced parallel, feeds the OOM-flake + Codesmith rightsizing arc) | Same two jobs, both on `ubuntu-latest` |
+| **Integration & E2E Tests** — backend Postgres integration + Playwright E2E | Backend integration on `blacksmith-4vcpu`; E2E on `blacksmith-2vcpu` (deliberately undersized — 3 browsers forced parallel, feeds the flaky-test + Codesmith rightsizing arc). **E2E is skipped on pull requests** so the flake can't redden scenario PRs. | Same two jobs, both on `ubuntu-latest` |
 | **Docker: Images & Stack Smoke** — image builds (never pushed) + full-stack compose smoke | 3 jobs: backend/frontend images via Blacksmith layer cache, plus `stack-smoke` (plain `docker compose up --build`) | 3 jobs: backend/frontend images via GitHub's `type=gha` cache, plus the same `stack-smoke` |
 
 ## Workflows in this repo
 
 | Workflow | What it does |
 | --- | --- |
-| `SE: Rebuild demo repos` | Pushes current `app/` + the matching `workflows/` overlay to `se-demo-app` / `se-demo-app-unmigrated` / `se-demo-app-prs` (`current` / `unmigrated` / `churn` / `both` / `all`). Creates the repo on first use. Normal commit, not a reset. |
-| `SE: Simulate PR activity` | Opens a scenario PR on `se-demo-app-prs` from `scenarios/*.patch` (or `cleanup` to close them). Hard-scoped to that one repo. This is the PR-loop / Codesmith-autofix demo. |
+| `SE: Rebuild demo repos` | Pushes current `app/` + the matching `workflows/` overlay to `se-demo-app` / `se-demo-app-unmigrated` (`current` / `unmigrated` / `both`). Creates the repo on first use. Normal commit, not a reset. Also the way to reset `main` after merging a scenario PR. |
+| `SE: Simulate PR activity` | Opens a scenario PR on `se-demo-app` from `scenarios/*.patch` (or `cleanup` to close them). Hard-scoped to `se-demo-app`. This is the PR-loop / Codesmith-autofix demo. |
 | `SE: Generate CI activity` | "Goose it now" button: triggers `ci`/`test`/`docker` via `workflow_dispatch` on a target repo, on top of its own `schedule:` triggers. No commits. |
 | `Validate` | Base-repo CI: fast correctness checks on `app/` and `workflows/` changes, plus a mirror of the demo repos' `stack-smoke` so a broken compose stack fails here rather than at demo time |
 | `SE: SSH sandbox` | No demo purpose — spins up a Blacksmith VM and holds it open (`minutes` input) so you can SSH in and poke around. `workflow_dispatch` only. |
