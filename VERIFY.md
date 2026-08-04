@@ -224,7 +224,45 @@ rather than build layers (already covered by the per-service image jobs).
 Don't "improve" it by adding the Blacksmith builder — it would confuse the
 two stories.
 
-## 5. Adjacent things worth a glance
+## 5. The PR loop and [code]smith Autofix
+
+Scenario PRs open against **`se-demo-app`** (there was briefly a separate
+`se-demo-app-prs` repo; it was consolidated away — see `DEMO_MECHANICS.md`
+§4.3). Verified working 2026-08-04.
+
+- [ ] Run **`SE: Simulate PR activity`** (`action: open`,
+      `scenario: 01-single-pass-rollup`). It opens a PR titled
+      *"perf(aggregate): roll up service metrics in a single pass"*.
+- [ ] Confirm the PR goes **red** on the `CI` workflow's `Frontend` job,
+      **Unit tests** step, with exactly one failure:
+      `expected 1 to be close to 0.005`. Lint and typecheck should pass, so
+      that test is the only signal.
+- [ ] Confirm `Dashboard E2E (Playwright)` shows as **skipped** on the PR —
+      that's `if: github.event_name != 'pull_request'` keeping the flaky
+      chart spec from muddying scenario PRs. If it *ran*, that guard is gone
+      and PRs will redden unpredictably.
+- [ ] Click **"Autofix with [code]smith"** on the PR. Autofix isn't automatic
+      on PRs it didn't create, which is deliberate — the PR stays broken
+      until you trigger it, so you get both a standing artifact and a live
+      moment.
+- [ ] Confirm the fix is *correct and minimal*. Last time it produced
+      `fix(aggregate): restore totalRequests as errorRate denominator` —
+      keeping the performance refactor and correcting only the denominator,
+      rather than reverting the PR. That "it understood the intent" framing
+      is the strongest version of this beat.
+- [ ] **Merging is optional.** Merge to accumulate real history; close it to
+      leave `main` on the canonical `app/`.
+- [ ] **If you merged**, run **`SE: Rebuild demo repos`** (`target: current`)
+      afterwards. Main now contains the fix, so the patch won't apply again
+      until you reset — the rebuild replaces content without rewriting
+      history, so your merge commits survive and the scenario is replayable.
+      Skip this if you closed the PR instead.
+
+Expect PR CI to take a few minutes (`METRICS_WORKLOAD: 200`, 3-way Node
+matrix). For a live autofix→green demo, open the PR *before* the call so the
+red state is already there.
+
+## 6. Adjacent things worth a glance
 
 - [ ] **Docker layer caching** (separate from container caching, already
   ```
