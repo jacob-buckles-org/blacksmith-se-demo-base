@@ -7,7 +7,20 @@ name: "SE: SSH sandbox"
 # The SSH command + unique port are printed in this run's "Set up runner"
 # step. One-time prerequisites: SSH access enabled at the org level
 # (Settings > Features) and your public SSH key added to your GitHub
-# account.
+# account. Note a freshly added key may not work for a while — see the
+# propagation-delay note in the SE vault.
+#
+# The step below deliberately carries a throwaway canary secret so you can
+# test what a secret looks like from inside an SSH session. It is a junk
+# value (repo secret SSH_CANARY) — NOT a real credential.
+#
+# Deliberately does NOT expose DEMO_PROVISION_TOKEN. That's a real PAT with
+# repo + workflow scope on the org, and this repo is public: if it ever
+# surfaced in a public run log, GitHub's secret scanning could auto-revoke
+# it, which would break "SE: Rebuild demo repos", "SE: Simulate PR activity"
+# and "SE: Generate CI activity" all at once. The canary proves the same
+# point, because once a job starts a secret is just an environment variable
+# — nothing protects it at rest on the runner.
 
 on:
   workflow_dispatch:
@@ -22,7 +35,32 @@ jobs:
     runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
       - name: Hold the VM open for SSH
+        env:
+          # Junk value, safe to expose. See header.
+          CANARY_SECRET: ${{ secrets.SSH_CANARY }}
+          CANARY_PLAIN: bs-ssh-canary-plain-not-a-secret
         run: |
           echo "SSH command is in the 'Set up runner' step above."
+          echo
+          echo "This step's environment carries two canaries:"
+          echo "  CANARY_PLAIN  — a literal, printed in this log"
+          echo "  CANARY_SECRET — from the SSH_CANARY repo secret, masked in this log"
+          echo
+          echo "CANARY_PLAIN is: ${CANARY_PLAIN}"
+          echo "CANARY_SECRET is: ${CANARY_SECRET}   <- expect *** here"
+          echo
+          echo "Once you're SSHed in as 'runner', try:"
+          echo "  pgrep -af sleep"
+          echo "  tr '\\0' '\\n' < /proc/<pid>/environ | grep CANARY"
+          echo "  ps eww <pid> | tr ' ' '\\n' | grep CANARY"
+          echo
+          echo "And for the runner process itself:"
+          echo "  pgrep -af Runner.Worker"
+          echo "  tr '\\0' '\\n' < /proc/<pid>/environ | sort"
+          echo
+          echo "GitHub masks secret values in the log above. That masking does"
+          echo "not extend to process memory or disk on the VM — which is the"
+          echo "thing this sandbox is for testing."
+          echo
           echo "Keeping this VM alive for ${{ inputs.minutes }} minutes..."
           sleep "$(( ${{ inputs.minutes }} * 60 ))"
