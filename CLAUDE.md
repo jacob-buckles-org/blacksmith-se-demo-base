@@ -44,6 +44,15 @@ GitHub repo: https://github.com/jacob-buckles-org/blacksmith-se-demo-base
   unrelated to the change under review and could send autofix chasing a
   flake instead of the regression. Don't add E2E to `workflows/churn/`
   without solving that.
+- **Merged scenario PRs are never reverted.** After a merge, main contains
+  the fix so the scenario patch stops applying; the reset is
+  `SE: Rebuild demo repos` with `target: churn`, which replaces main's
+  content without rewriting history (the merge commits stay). Verified
+  2026-08-04. Full cycle in `DEMO_MECHANICS.md` §4.2.
+- **Don't consolidate this into `se-demo-app`** — that was considered and
+  rejected: `se-demo-app` and `se-demo-app-unmigrated` must stay
+  content-identical for the before/after comparison to be honest, and
+  merging PRs into one breaks that. Reasoning in `DEMO_MECHANICS.md` §4.3.
 - **`SE: Rebuild demo repos`** (`target`: current/unmigrated/both)
   redistributes the CURRENT `app/` + matching `workflows/` set to each
   target's `main` as one normal commit — no force-push, no history wipe.

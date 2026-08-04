@@ -294,9 +294,85 @@ PR you can open cold, plus a live moment to trigger the fix. The docs also
 warn that interdependent autofix PRs can cascade into long sessions, so
 avoid stacking many open scenarios at once — `cleanup` exists for that.
 
-**Unverified:** whether Autofix actually produces a *correct* fix here. It
-should be a tractable target, but don't build a demo around it until you've
-watched it work once.
+**Verified 2026-08-04.** Autofix produced the *right* fix on PR #1:
+`fix(aggregate): restore totalRequests as errorRate denominator`. It kept
+the performance refactor and corrected only the denominator, rather than
+reverting the PR wholesale — i.e. it understood the intent of the change,
+which is a much better story than "it undid it."
+
+### 4.2 The long-term cycle (important)
+
+**You never need to revert or undo a merged scenario PR.** Merging is the
+point — it's what gives this repo real history. But merging does mean main
+now contains the fix, so the same patch won't apply again:
+
+```
+main after merge:  single-pass loop + CORRECT denominator   ← Codesmith's fix
+the patch expects: three reduce() calls                      ← canonical app/
+→ git am fails
+```
+
+**The reset is `SE: Rebuild demo repos` with `target: churn`.** It pushes the
+canonical `app/` back over main as an ordinary commit, so the patch applies
+again. Verified end to end: patch failed against the post-merge main, then
+applied cleanly after a rebuild.
+
+Crucially the rebuild **only replaces content on main — it does not rewrite
+history**. After the reset, the log still reads:
+
+```
+Sync from blacksmith-se-demo-base (churn)     ← the reset
+Merge pull request #1 from …scenario/01-…      ← your merge, preserved
+fix(aggregate): restore totalRequests …        ← Codesmith's fix, preserved
+perf(aggregate): roll up service metrics …     ← the scenario PR
+Sync from blacksmith-se-demo-base (churn)
+```
+
+So every demo run leaves a permanent, real-looking merged-PR trail while the
+scenario stays replayable. The repo gets *more* realistic over time, which is
+the opposite of the other two.
+
+**Per-demo loop:**
+
+1. `SE: Simulate PR activity` → `open` (a fresh timestamped branch, so it
+   never collides with previous runs).
+2. Demo: CI goes red → click **Autofix with [code]smith** → merge if you want
+   the history.
+3. Only if you merged: `SE: Rebuild demo repos` → `target: churn` to reset
+   main. Skip it if you closed the PR instead.
+
+`cleanup` closes any open scenario PRs and deletes their branches — worth
+running if several are stacked, since the docs warn interdependent autofix
+PRs can cascade into long sessions.
+
+### 4.3 Why this isn't just done in `se-demo-app`
+
+Reasonable question, and worth writing down because it'll come up again. Four
+reasons, roughly in order of how much they'd actually hurt:
+
+1. **`se-demo-app` and `se-demo-app-unmigrated` must stay content-identical.**
+   The entire before/after comparison rests on "same app, same workload, only
+   the CI config differs." Merging PRs into one and not the other makes them
+   diverge, and the comparison stops being honest. This is the reason that
+   really settles it.
+2. **The deliberately flaky E2E test would poison the loop.** It reddens ~9%
+   of runs for reasons unrelated to the change under review — and with
+   autofix enabled, Codesmith could go off and "fix" the flaky test instead
+   of the regression. Actively harmful to the demo you're trying to run.
+3. **`se-demo-app`'s CI is deliberately slow** (`METRICS_WORKLOAD: 200`,
+   3-browser E2E matrix, ~6-7 min). A PR/autofix loop wants fast feedback;
+   the churn repo does the whole PR run in **52s**.
+4. **Churn breaks the steady-state guarantee.** The value of those two repos
+   is that they're always exactly what you expect when you open them cold.
+   A stream of merged PRs and periodic main resets is the opposite.
+
+**The narrow version that *would* work in `se-demo-app`:** open a scenario
+PR and always **close** it rather than merging. Main never changes, so
+divergence and resets both go away. You'd still inherit the slow CI and the
+flaky test (1 and 4 solved, 2 and 3 not). Worth knowing as a fallback if you
+ever need to demo autofix against the migrated repo specifically — but note
+that *merging* is what makes the history realistic, and merging is precisely
+what you can't safely do there.
 
 ## 5. What is *not* engineered
 

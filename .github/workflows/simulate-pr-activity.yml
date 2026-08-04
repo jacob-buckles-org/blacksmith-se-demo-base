@@ -112,7 +112,8 @@ jobs:
           # -p2 strips "a/" and "app/" so the patch lands at the repo root.
           if ! git am -p2 "$PATCH"; then
             git am --abort || true
-            echo "::error::scenarios/${{ inputs.scenario }}.patch no longer applies to ${TARGET_REPO}'s main — regenerate it (see DEMO_MECHANICS.md)"
+            echo "::error::scenarios/${{ inputs.scenario }}.patch does not apply to ${TARGET_REPO}'s main."
+            echo "::notice::Most likely cause: a previous run of this scenario was merged, so main already contains the fix. Run 'SE: Rebuild demo repos' with target 'churn' to reset main to the canonical app/, then retry. (If app/ genuinely changed, regenerate the patch — see DEMO_MECHANICS.md.)"
             exit 1
           fi
 
